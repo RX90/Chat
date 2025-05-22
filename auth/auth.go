@@ -3,23 +3,17 @@ package auth
 import (
 	"crypto/rand"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/RX90/Chat/auth/pkg"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/RX90/Chat/middleware"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/bcrypt"
-)
-
-var (
-	signingKey = os.Getenv("AUTH_KEY")
-	accessTTL  = 15 * time.Minute
-	refreshTTL = 15 * 24 * time.Hour
 )
 
 type Auth struct {
@@ -27,9 +21,7 @@ type Auth struct {
 	DB     *sqlx.DB
 }
 
-type TokenClaims struct {
-	jwt.StandardClaims
-}
+var refreshTTL = 15 * 24 * time.Hour
 
 func (a *Auth) signUp(c *gin.Context) {
 	var input pkg.User
@@ -102,13 +94,13 @@ func (a *Auth) signIn(c *gin.Context) {
 		return
 	}
 
-	accessToken, err := NewAccessToken(userID.String())
+	accessToken, err := middleware.NewAccessToken(userID.String())
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"err": fmt.Sprintf("can't create access token: %v", err)})
 		return
 	}
 
-	refreshToken, expiresAt, err := a.NewRefreshToken(userID.String())
+	refreshToken, expiresAt, err := a.newRefreshToken(userID.String())
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"err": fmt.Sprintf("can't create refresh token: %v", err)})
 		return
@@ -129,6 +121,66 @@ func (a *Auth) signIn(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"access_token": accessToken})
 }
 
+func (a *Auth) refreshTokens(c *gin.Context) {
+	userID := c.GetString("userID")
+	refreshToken, err := c.Cookie("refreshToken")
+	if err != nil || refreshToken == "" {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"err": "refresh token is missing"})
+		return
+	}
+
+	if err := a.checkRefreshToken(userID, refreshToken); err != nil {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"err": fmt.Sprintf("refresh token is invalid: %v", err)})
+		return
+	}
+
+	accessToken, err := middleware.NewAccessToken(userID)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"err": fmt.Sprintf("can't create access token: %v", err)})
+		return
+	}
+
+	refreshToken, expiresAt, err := a.newRefreshToken(userID)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"err": fmt.Sprintf("can't create refresh token: %v", err)})
+		return
+	}
+
+	cookie := &http.Cookie{
+		Name:     "refreshToken",
+		Value:    refreshToken,
+		Expires:  expiresAt,
+		Path:     "/",
+		Domain:   "localhost",
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+	}
+
+	http.SetCookie(c.Writer, cookie)
+
+	c.JSON(http.StatusOK, gin.H{"access_token": accessToken})
+}
+
+func (a *Auth) logout(c *gin.Context) {
+	userID := c.GetString("userID")
+
+	if err := a.deleteRefreshToken(userID); err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"err": fmt.Sprintf("error occured on deleting refresh token: %v", err)})
+		return
+	}
+
+	cookie := &http.Cookie{
+		Name:   "refreshToken",
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1,
+	}
+
+	http.SetCookie(c.Writer, cookie)
+
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
 func generatePasswordHash(password string) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -137,18 +189,7 @@ func generatePasswordHash(password string) (string, error) {
 	return string(hash), nil
 }
 
-func NewAccessToken(userID string) (string, error) {
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, TokenClaims{
-		jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(accessTTL).Unix(),
-			Subject:   userID,
-		},
-	})
-
-	return accessToken.SignedString([]byte(signingKey))
-}
-
-func (a *Auth) NewRefreshToken(userID string) (string, time.Time, error) {
+func (a *Auth) newRefreshToken(userID string) (string, time.Time, error) {
 	b := make([]byte, 32)
 	_, err := rand.Read(b)
 	if err != nil {
@@ -158,10 +199,10 @@ func (a *Auth) NewRefreshToken(userID string) (string, time.Time, error) {
 	token := fmt.Sprintf("%x", b)
 	expiresAt := time.Now().Add(refreshTTL)
 
-	return token, expiresAt, a.UpsertRefreshToken(userID, token, expiresAt)
+	return token, expiresAt, a.upsertRefreshToken(userID, token, expiresAt)
 }
 
-func (a *Auth) UpsertRefreshToken(userID, refreshToken string, expiresAt time.Time) error {
+func (a *Auth) upsertRefreshToken(userID, refreshToken string, expiresAt time.Time) error {
 	tx, err := a.DB.Begin()
 	if err != nil {
 		return err
@@ -206,4 +247,45 @@ func (a *Auth) UpsertRefreshToken(userID, refreshToken string, expiresAt time.Ti
 	}
 
 	return tx.Commit()
+}
+
+func (a *Auth) checkRefreshToken(userID, refreshToken string) error {
+	var (
+		tokenID     string
+		storedToken string
+		expiresAt   time.Time
+	)
+
+	query := "SELECT ut.token_id FROM users_tokens ut WHERE ut.user_id = $1"
+	err := a.DB.QueryRow(query, userID).Scan(&tokenID)
+	if err != nil {
+		return err
+	}
+
+	query = "SELECT t.refresh_token, t.expires_at FROM tokens t WHERE t.id = $1"
+	err = a.DB.QueryRow(query, tokenID).Scan(&storedToken, &expiresAt)
+	if err != nil {
+		return err
+	}
+
+	if storedToken != refreshToken {
+		return errors.New("tokens are different")
+	}
+
+	if time.Now().After(expiresAt) {
+		return errors.New("token has expired")
+	}
+
+	return nil
+}
+
+func (a *Auth) deleteRefreshToken(userID string) error {
+	query := `
+		DELETE FROM tokens t
+		USING users_tokens ut
+		WHERE t.id = ut.token_id AND ut.user_id = $1`
+
+	_, err := a.DB.Exec(query, userID)
+
+	return err
 }
