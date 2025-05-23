@@ -1,3 +1,6 @@
+chat:
+  port: "8000"
+
 auth:
   port: "8080"
 

@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/RX90/Chat/auth/pkg"
 	"github.com/RX90/Chat/middleware"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -21,10 +20,16 @@ type Auth struct {
 	DB     *sqlx.DB
 }
 
+type User struct {
+	ID       uuid.UUID `json:"id" db:"id"`
+	Login    string    `json:"login" db:"login" binding:"required"`
+	Password string    `json:"password" db:"password_hash" binding:"required"`
+}
+
 var refreshTTL = 15 * 24 * time.Hour
 
 func (a *Auth) signUp(c *gin.Context) {
-	var input pkg.User
+	var input User
 
 	if err := c.BindJSON(&input); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"err": fmt.Sprintf("can't bind JSON: %v", err)})
@@ -70,7 +75,7 @@ func (a *Auth) signUp(c *gin.Context) {
 }
 
 func (a *Auth) signIn(c *gin.Context) {
-	var input pkg.User
+	var input User
 
 	if err := c.BindJSON(&input); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"err": fmt.Sprintf("can't bind JSON: %v", err)})

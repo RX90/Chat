@@ -9,11 +9,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/RX90/Chat/auth"
+	"github.com/RX90/Chat/chat"
 	"github.com/RX90/Chat/db"
 	"github.com/joho/godotenv"
-	"github.com/spf13/viper"
 	_ "github.com/lib/pq"
+	"github.com/spf13/viper"
 )
 
 func main() {
@@ -25,7 +25,7 @@ func main() {
 		log.Fatalf("can't load .env: %v", err)
 	}
 
-	server := auth.NewServer()
+	server := chat.NewServer()
 
 	postgres, err := db.NewPostgresDB(db.Config{
 		Host:     viper.GetString("db.host"),
@@ -39,32 +39,36 @@ func main() {
 		log.Fatalf("can't start db: %v", err)
 	}
 
-	a := &auth.Auth{
+	hub := chat.NewHub()
+	go hub.Run()
+	
+	c := &chat.Chat{
 		Server: server,
-		DB: postgres,
+		Hub:    hub,
+		DB:     postgres,
 	}
 
 	go func() {
-		a.Server.Run(viper.GetString("auth.port"), a.InitRoutes())
+		c.Server.Run(viper.GetString("chat.port"), c.InitRoutes())
 	}()
 
-	log.Printf("auth module started on :%s\n", viper.GetString("auth.port"))
+	log.Printf("chat module started on :%s\n", viper.GetString("chat.port"))
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
 	<-quit
 
-	log.Println("shutting down auth module")
+	log.Println("shutting down chat module")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := a.Server.Shutdown(ctx); err != nil {
-		log.Fatalf("error occurred during auth server shutdown: %v", err)
+	if err := c.Server.Shutdown(ctx); err != nil {
+		log.Fatalf("error occurred during chat server shutdown: %v", err)
 	}
 
-	if err := a.DB.Close(); err != nil {
-		log.Fatalf("error occurred while closing db connection (auth): %v", err)
+	if err := c.DB.Close(); err != nil {
+		log.Fatalf("error occurred while closing db connection (chat): %v", err)
 	}
 }
 
