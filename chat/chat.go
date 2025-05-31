@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -53,11 +52,12 @@ var (
 )
 
 func (c *Chat) handleChatPage(ctx *gin.Context) {
-	http.ServeFile(ctx.Writer, ctx.Request, "chat.html")
+	ctx.HTML(http.StatusOK, "chat.html", nil)
 }
 
 func (c *Chat) handleChatWS(ctx *gin.Context) {
 	userID := ctx.GetString("userID")
+	log.Println(userID)
 	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"err": fmt.Sprintf("can't upgrade http request: %v", err)})
@@ -75,12 +75,7 @@ func (c *Chat) handleChatWS(ctx *gin.Context) {
 		return
 	} else {
 		for _, msg := range messages {
-			outgoingMsg := Message{
-				Content:     msg.Content,
-				SenderLogin: msg.SenderLogin,
-				Time:        msg.Time,
-			}
-			jsonMsg, err := json.Marshal(outgoingMsg)
+			jsonMsg, err := json.Marshal(msg)
 			if err != nil {
 				ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"err": fmt.Sprintf("failed to marshal history message: %v", err)})
 				return
@@ -143,33 +138,38 @@ func (c *Client) readPump() {
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error: %v", err)
+				continue
 			}
 			break
 		}
 
-		var incomingMsg Message
-		if err := json.Unmarshal(msgBytes, &incomingMsg); err != nil {
+		var msg Message
+		if err := json.Unmarshal(msgBytes, &msg); err != nil {
 			log.Printf("invalid json: %v", err)
 			continue
 		}
 
-		_, err = c.db.Exec(
-			"INSERT INTO messages (sender_id, created_at, content) VALUES ($1, $2, $3)",
+		msg.Time = time.Now().UTC().Format(time.RFC3339)
+
+		if err = c.db.QueryRowx(`
+    		WITH inserted_message AS (
+        		INSERT INTO messages (sender_id, created_at, content) 
+        		VALUES ($1, $2, $3)
+        		RETURNING id, content, created_at
+    		)
+    		SELECT im.content, u.login AS sender, to_char(im.created_at AT TIME ZONE 'Asia/Yekaterinburg', 'YYYY-MM-DD HH24:MI:SS') AS created_at
+    		FROM inserted_message im
+    		JOIN users u ON u.id = $1`,
 			c.userID,
-			incomingMsg.Time,
-			strings.TrimSpace(incomingMsg.Content),
-		)
-		if err != nil {
-			log.Printf("Failed to save message to DB: %v", err)
+			msg.Time,
+			msg.Content,
+		).StructScan(&msg); err != nil {
+			log.Printf("error: %v", err)
 			continue
+			// PROD ONLY
 		}
 
-		outgoingMsg := Message{
-			Content:     strings.TrimSpace(incomingMsg.Content),
-			Time:        incomingMsg.Time,
-		}
-
-		jsonMsg, err := json.Marshal(outgoingMsg)
+		jsonMsg, err := json.Marshal(msg)
 		if err != nil {
 			log.Printf("Failed to marshal json: %v", err)
 			continue
@@ -183,7 +183,7 @@ func (c *Chat) loadChatHistory() ([]Message, error) {
 	var messages []Message
 
 	query := `
-        SELECT m.content, u.login AS sender, m.created_at
+        SELECT m.content, u.login AS sender, to_char(m.created_at AT TIME ZONE 'Asia/Yekaterinburg', 'YYYY-MM-DD HH24:MI:SS') AS created_at
         FROM messages m
         JOIN users u ON m.sender_id = u.id
         ORDER BY m.created_at ASC
