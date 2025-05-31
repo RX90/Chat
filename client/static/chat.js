@@ -2,6 +2,21 @@ window.onload = function () {
   var conn;
   var msg = document.getElementById("msg");
   var log = document.getElementById("log");
+  const scrollButton = document.getElementById("scrollToBottom");
+
+  function checkScroll() {
+    const isAtBottom = log.scrollHeight - log.clientHeight <= log.scrollTop + 1;
+    scrollButton.classList.toggle("show", !isAtBottom);
+  }
+
+  function scrollToBottom() {
+    log.scrollTop = log.scrollHeight;
+    scrollButton.classList.remove("show");
+  }
+
+  scrollButton.addEventListener("click", scrollToBottom);
+
+  log.addEventListener("scroll", checkScroll);
 
   function createMessageElement(parsed) {
     var messageDiv = document.createElement("div");
@@ -91,12 +106,23 @@ window.onload = function () {
     };
 
     conn.onmessage = function (evt) {
-      try {
-        const parsed = JSON.parse(evt.data);
-        const messageElement = createMessageElement(parsed);
-        appendLog(messageElement);
-      } catch (e) {
-        console.error("Message parse error:", e);
+      var messages = evt.data.split("\n");
+
+      for (var i = 0; i < messages.length; i++) {
+        const rawMessage = messages[i].trim();
+        if (!rawMessage) continue;
+
+        try {
+          const parsed = JSON.parse(rawMessage);
+          const messageElement = createMessageElement(parsed); // Используем готовую функцию
+          appendLog(messageElement);
+        } catch (e) {
+          console.error("Message parse error:", e);
+          var fallbackDiv = document.createElement("div");
+          fallbackDiv.className = "message";
+          fallbackDiv.textContent = rawMessage;
+          appendLog(fallbackDiv);
+        }
       }
     };
   } else {

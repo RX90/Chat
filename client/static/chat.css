@@ -110,3 +110,25 @@ body {
 #form input[type="submit"]:hover {
   background: #2980b9;
 }
+
+#scrollToBottom {
+      position: fixed;
+      right: 20px;
+      bottom: 70px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #3498db;
+      color: white;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      display: none; /* Скрыта по умолчанию */
+      z-index: 100;
+    }
+    #scrollToBottom:hover {
+      background: #2980b9;
+    }
+    #scrollToBottom.show {
+      display: block;
+    }
