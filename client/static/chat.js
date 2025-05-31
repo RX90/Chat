@@ -3,24 +3,68 @@ window.onload = function () {
   var msg = document.getElementById("msg");
   var log = document.getElementById("log");
 
-  function appendLog(item) {
+  function createMessageElement(parsed) {
+    var messageDiv = document.createElement("div");
+    messageDiv.className = "message";
+
+    var senderSpan = document.createElement("span");
+    senderSpan.className = "sender";
+    senderSpan.textContent = parsed.sender || "Anonymous";
+
+    var contentDiv = document.createElement("div");
+    contentDiv.className = "message-content";
+    contentDiv.textContent = parsed.content;
+
+    var timeSpan = document.createElement("span");
+    timeSpan.className = "timestamp";
+
+    if (parsed.time) {
+      var date = new Date(parsed.time);
+      // Короткий формат (23:49)
+      timeSpan.textContent = date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      // Полный формат без запятой (31.05.2025 23:49:01)
+      var day = String(date.getDate()).padStart(2, "0");
+      var month = String(date.getMonth() + 1).padStart(2, "0");
+      var year = date.getFullYear();
+      var hours = String(date.getHours()).padStart(2, "0");
+      var minutes = String(date.getMinutes()).padStart(2, "0");
+      var seconds = String(date.getSeconds()).padStart(2, "0");
+
+      var fullTime = `${day}.${month}.${year} ${hours}:${minutes}:${seconds}`;
+      timeSpan.setAttribute("data-fulltime", fullTime);
+    } else {
+      timeSpan.textContent = "--:--";
+      timeSpan.setAttribute("data-fulltime", "Неизвестное время");
+    }
+
+    messageDiv.appendChild(senderSpan);
+    messageDiv.appendChild(contentDiv);
+    messageDiv.appendChild(timeSpan);
+
+    return messageDiv;
+  }
+
+  // Остальной код остается без изменений
+  function appendLog(element) {
     var doScroll = log.scrollTop > log.scrollHeight - log.clientHeight - 1;
-    log.appendChild(item);
+    log.appendChild(element);
     if (doScroll) {
       log.scrollTop = log.scrollHeight - log.clientHeight;
     }
   }
 
-  document.getElementById("form").onsubmit = function () {
-    if (!conn || !msg.value) {
-      return false;
-    }
+  document.getElementById("form").onsubmit = function (e) {
+    e.preventDefault();
+    if (!conn || !msg.value.trim()) return false;
 
     const messageObject = {
       content: msg.value.trim(),
+      time: new Date().toISOString(),
     };
-
-    console.log("OUTGOING JSON:\n" + JSON.stringify(messageObject, null, 2));
 
     conn.send(JSON.stringify(messageObject));
     msg.value = "";
@@ -35,35 +79,29 @@ window.onload = function () {
         "/ws?accessToken=" +
         encodeURIComponent(token)
     );
+
     conn.onclose = function (evt) {
       var item = document.createElement("div");
       item.innerHTML = "<b>Connection closed. Reload page</b>";
       appendLog(item);
     };
+
     conn.onerror = function (evt) {
       console.error("WebSocket error:", evt);
     };
+
     conn.onmessage = function (evt) {
-      var messages = evt.data.split("\n");
-
-      for (var i = 0; i < messages.length; i++) {
-        const rawMessage = messages[i];
-
-        try {
-          const parsed = JSON.parse(rawMessage);
-          console.log("INCOMING JSON:\n" + JSON.stringify(parsed, null, 2));
-        } catch (e) {
-          console.log("NON-JSON MESSAGE:", rawMessage);
-        }
-
-        var item = document.createElement("div");
-        item.innerText = messages[i];
-        appendLog(item);
+      try {
+        const parsed = JSON.parse(evt.data);
+        const messageElement = createMessageElement(parsed);
+        appendLog(messageElement);
+      } catch (e) {
+        console.error("Message parse error:", e);
       }
     };
   } else {
     var item = document.createElement("div");
-    item.innerHTML = "<b>Your browser does not support WebSockets.</b>";
+    item.textContent = "Your browser does not support WebSockets.";
     appendLog(item);
   }
 };
