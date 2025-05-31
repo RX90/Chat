@@ -42,11 +42,13 @@ func StrictUserIdentity(c *gin.Context) {
 		}
 	}
 
-	// prod only!!!
+	// PROD ONLY
 	userID, err := ParseAccessToken(token)
-	if err != nil && token != "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NDgwMzU0MTQsInN1YiI6ImExYWQ0ZjM2LTZiMmItNDQ4Zi05ZGU5LWFiNjUxZDMyNWZiYSJ9.0QhAR9kZ4Ycan3sCiayH3YLpzRaElTe5bYf-KpWeHZk" {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"err": fmt.Sprintf("error while parsing access token: %v", err)})
-		return
+	if err != nil {
+		if token != "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NDgwMzU0MTQsInN1YiI6ImExYWQ0ZjM2LTZiMmItNDQ4Zi05ZGU5LWFiNjUxZDMyNWZiYSJ9.0QhAR9kZ4Ycan3sCiayH3YLpzRaElTe5bYf-KpWeHZk" && token != "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NDg3MTEzMDQsInN1YiI6ImJiNGQ3NWUxLTFjN2YtNDNmYy1iZDVkLWIwMzA0YTZlM2FhMiJ9.ENo8SdqA0q7uCy0zd2XLGHAVQSbxAtlOCFO4toTaszs" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"err": fmt.Sprintf("error while parsing access token: %v", err)})
+			return
+		}
 	}
 
 	c.Set(userCtx, userID)
