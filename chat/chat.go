@@ -137,7 +137,7 @@ func (c *Client) readPump() {
 		_, msgBytes, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("error: %v", err)
+				log.Printf("unexpected close in readPump: %v", err)
 				continue
 			}
 			break
@@ -145,7 +145,7 @@ func (c *Client) readPump() {
 
 		var msg Message
 		if err := json.Unmarshal(msgBytes, &msg); err != nil {
-			log.Printf("invalid json: %v", err)
+			log.Printf("failed to unmarshall JSON in readPump: %v", err)
 			continue
 		}
 
@@ -164,14 +164,13 @@ func (c *Client) readPump() {
 			msg.Time,
 			msg.Content,
 		).StructScan(&msg); err != nil {
-			log.Printf("error: %v", err)
+			log.Printf("DB error while inserting message from readPump: %v", err)
 			continue
-			// PROD ONLY
 		}
 
 		jsonMsg, err := json.Marshal(msg)
 		if err != nil {
-			log.Printf("Failed to marshal json: %v", err)
+			log.Printf("failed to marshal JSON in readPump: %v", err)
 			continue
 		}
 
