@@ -35,13 +35,11 @@ window.onload = function () {
 
     if (parsed.time) {
       var date = new Date(parsed.time);
-      // Короткий формат (23:49)
       timeSpan.textContent = date.toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
       });
 
-      // Полный формат без запятой (31.05.2025 23:49:01)
       var day = String(date.getDate()).padStart(2, "0");
       var month = String(date.getMonth() + 1).padStart(2, "0");
       var year = date.getFullYear();
@@ -63,7 +61,6 @@ window.onload = function () {
     return messageDiv;
   }
 
-  // Остальной код остается без изменений
   function appendLog(element) {
     var doScroll = log.scrollTop > log.scrollHeight - log.clientHeight - 1;
     log.appendChild(element);

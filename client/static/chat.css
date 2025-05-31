@@ -20,7 +20,7 @@ body {
 }
 
 .message {
-  position: relative; /* Для позиционирования времени */
+  position: relative; 
   max-width: 70%;
   margin-bottom: 12px;
   padding: 12px 15px;
@@ -39,7 +39,7 @@ body {
 .sender {
   font-weight: bold;
   color: #2c3e50;
-  display: block; /* Логин на отдельной строке */
+  display: block; 
   margin-bottom: 5px;
 }
 
@@ -76,24 +76,24 @@ body {
 .message-content {
   color: #34495e;
   line-height: 1.4;
-  padding-bottom: 15px; /* Место для времени */
-  margin-right: 40px; /* Чтобы время не наезжало на текст */
+  padding-bottom: 15px; 
+  margin-right: 40px; 
 }
 
 #form {
   padding: 10px;
   background: #dfe6e9;
   display: flex;
-  gap: 10px; /* Добавляем отступ между элементами */
-  align-items: center; /* Выравниваем по вертикали */
+  gap: 10px; 
+  align-items: center; 
 }
 
 #msg {
-  flex: 1; /* Занимает всё доступное пространство */
+  flex: 1; 
   padding: 10px;
   border: 1px solid #bdc3c7;
   border-radius: 4px;
-  min-width: 0; /* Важно для корректного сжатия */
+  min-width: 0; 
 }
 
 #form input[type="submit"] {
@@ -103,8 +103,8 @@ body {
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  white-space: nowrap; /* Текст не переносится */
-  flex-shrink: 0; /* Не сжимается */
+  white-space: nowrap;
+  flex-shrink: 0; 
 }
 
 #form input[type="submit"]:hover {
@@ -123,7 +123,7 @@ body {
       border: none;
       cursor: pointer;
       box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-      display: none; /* Скрыта по умолчанию */
+      display: none;
       z-index: 100;
     }
     #scrollToBottom:hover {
