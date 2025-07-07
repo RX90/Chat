@@ -1,0 +1,8 @@
+services:
+  app:
+    build: ./
+    container_name: web
+    image: rx90/chat
+    restart: on-failure
+    ports:
+      - "8080:8080"
