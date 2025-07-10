@@ -2,18 +2,18 @@ package web
 
 import (
 	"embed"
-	"io/fs"
+	"html/template"
 	"log"
-	"net/http"
 )
 
 //go:embed templates
 var content embed.FS
 
-func TemplatesFS() http.FileSystem {
-	subFS, err := fs.Sub(content, "templates")
+func ParseTemplates() *template.Template {
+	tmpl, err := template.ParseFS(content, "templates/*.html")
 	if err != nil {
-		log.Fatal("web: couldn't find 'templates' directory in embedded files:", err)
+		log.Fatalf("couldn't parse embedded templates: %v", err)
 	}
-	return http.FS(subFS)
+
+	return tmpl
 }

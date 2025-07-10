@@ -14,6 +14,7 @@ FROM alpine:latest
 WORKDIR /app
 
 COPY --from=builder /app/chat /app/chat
+COPY --from=builder /app/config/config.yaml /app/config/config.yaml
 
 EXPOSE 8080
 
