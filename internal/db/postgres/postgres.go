@@ -28,12 +28,12 @@ func NewPostgresDB(cfg *config.DBConfig) (*gorm.DB, error) {
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to open gorm connection: %v", err)
+		return nil, fmt.Errorf("failed to open gorm connection: %w", err)
 	}
 
 	sqlDB, err := db.DB()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get generic db: %v", err)
+		return nil, fmt.Errorf("failed to get generic db: %w", err)
 	}
 
 	sqlDB.SetMaxOpenConns(maxOpenConns)
@@ -43,12 +43,12 @@ func NewPostgresDB(cfg *config.DBConfig) (*gorm.DB, error) {
 
 	if err = sqlDB.Ping(); err != nil {
 		sqlDB.Close()
-		return nil, fmt.Errorf("failed to ping database: %v", err)
+		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	if err = applyMigrations(cfg); err != nil {
 		sqlDB.Close()
-		return nil, fmt.Errorf("failed to apply migrations: %v", err)
+		return nil, fmt.Errorf("failed to apply migrations: %w", err)
 	}
 
 	return db, nil
@@ -59,16 +59,16 @@ func applyMigrations(cfg *config.DBConfig) error {
 
 	d, err := iofs.New(migrations.MigrationFS, ".")
 	if err != nil {
-		return fmt.Errorf("failed to create iofs driver: %v", err)
+		return fmt.Errorf("failed to create iofs driver: %w", err)
 	}
 
 	m, err := migrate.NewWithSourceInstance("iofs", d, dbURL)
 	if err != nil {
-		return fmt.Errorf("failed to create migrate instance: %v", err)
+		return fmt.Errorf("failed to create migrate instance: %w", err)
 	}
 
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		return fmt.Errorf("failed to up migrations: %v", err)
+		return fmt.Errorf("failed to up migrations: %w", err)
 	}
 
 	return nil

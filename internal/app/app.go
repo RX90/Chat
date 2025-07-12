@@ -27,12 +27,12 @@ type App struct {
 func NewApp() (*App, error) {
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		return nil, fmt.Errorf("load config error: %v", err)
+		return nil, fmt.Errorf("load config error: %w", err)
 	}
 
 	db, err := postgres.NewPostgresDB(cfg.DB)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get db: %v", err)
+		return nil, fmt.Errorf("failed to get db: %w", err)
 	}
 
 	hub := ws.NewHub()
@@ -40,7 +40,10 @@ func NewApp() (*App, error) {
 	repo := repo.NewRepo(db)
 	handler := handler.NewHandler(hub, repo)
 
-	r := router.NewRouter(handler)
+	r, err := router.NewRouter(handler)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get router: %w", err)
+	}
 	srv := server.NewServer(cfg.Server, r)
 
 	return &App{
@@ -65,9 +68,9 @@ func (a *App) Run() {
 	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
 	<-quit
 
-	log.Println("Initiating graceful shutdown of HTTP server...")
+	log.Println("Shutting down HTTP server...")
 	if err := a.server.Shutdown(context.Background()); err != nil {
-		log.Fatalf("Error during HTTP server shutdown: %v", err)
+		log.Printf("Error during HTTP server shutdown: %v\n", err)
 	}
 
 	log.Println("Shutting down WebSocket hub...")

@@ -2,28 +2,28 @@ package web
 
 import (
 	"embed"
+	"fmt"
 	"html/template"
 	"io/fs"
-	"log"
 	"net/http"
 )
 
 //go:embed templates static
 var content embed.FS
 
-func ParseTemplates() *template.Template {
+func ParseTemplates() (*template.Template, error) {
 	tmpl, err := template.ParseFS(content, "templates/*.html")
 	if err != nil {
-		log.Fatalf("couldn't parse embedded templates: %v", err)
+		return nil, fmt.Errorf("failed to parse embedded templates: %w", err)
 	}
 
-	return tmpl
+	return tmpl, nil
 }
 
-func StaticFiles() http.FileSystem {
+func StaticFiles() (http.FileSystem, error) {
 	sub, err := fs.Sub(content, "static")
 	if err != nil {
-		log.Fatalf("failed to create sub FS for static: %v", err)
+		return nil, fmt.Errorf("failed to create sub FileSystem for static: %w", err)
 	}
-	return http.FS(sub)
+	return http.FS(sub), nil
 }

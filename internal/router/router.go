@@ -6,15 +6,23 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func NewRouter(h *handler.Handler) *gin.Engine {
+func NewRouter(h *handler.Handler) (*gin.Engine, error) {
 	router := gin.Default()
 
-	tmpl := web.ParseTemplates()
+	tmpl, err := web.ParseTemplates()
+	if err != nil {
+		return nil, err
+	}
 	router.SetHTMLTemplate(tmpl)
-	router.StaticFS("/static", web.StaticFiles())
+
+	fs, err := web.StaticFiles()
+	if err != nil {
+		return nil, err
+	}
+	router.StaticFS("/static", fs)
 
 	router.GET("/", h.HandleChatPage)
 	router.GET("/ws", h.ServeWs)
 
-	return router
+	return router, nil
 }

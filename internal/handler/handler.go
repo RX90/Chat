@@ -26,7 +26,7 @@ func (h *Handler) HandleChatPage(c *gin.Context) {
 func (h *Handler) ServeWs(c *gin.Context) {
 	conn, err := ws.Upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"err": fmt.Sprintf("can't upgrade http request: %v", err)})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"err": fmt.Sprintf("can't upgrade HTTP request: %v", err)})
 		return
 	}
 
@@ -48,6 +48,7 @@ func (h *Handler) ServeWs(c *gin.Context) {
 			}
 			if err := client.SendMessage(jsonMsg); err != nil {
 				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"err": fmt.Sprintf("failed to send message: %v", err)})
+				return
 			}
 		}
 	}

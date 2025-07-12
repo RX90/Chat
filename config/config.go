@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	_ "embed"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -38,17 +39,17 @@ func LoadConfig() (*Config, error) {
 	viper.SetConfigType("yaml")
 
 	if err := viper.ReadConfig(bytes.NewReader(EmbeddedConfig)); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read embedded config: %w", err)
 	}
 
 	var cfg Config
 	if err := viper.Unmarshal(&cfg); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
 	cfg.DB.Password = os.Getenv("DB_PASSWORD")
 	if cfg.DB.Password == "" {
-		return nil, fmt.Errorf("DB_PASSWORD not set")
+		return nil, errors.New("env variable DB_PASSWORD is not set")
 	}
 
 	return &cfg, nil
