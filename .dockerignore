@@ -1,0 +1,13 @@
+.env
+.env.example
+
+.git
+.gitignore
+
+.dockerignore
+docker-compose.yaml
+Dockerfile
+
+README.md
+LICENSE
+.txt

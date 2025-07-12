@@ -50,6 +50,18 @@ func (h *Hub) Run() {
 	}
 }
 
+func (h *Hub) RegisterClient(c *Client) {
+	h.register <- c
+}
+
+func (h *Hub) UnregisterClient(c *Client) {
+	h.unregister <- c
+}
+
+func (h *Hub) BroadcastMessage(msg []byte) {
+	h.broadcast <- msg
+}
+
 func (h *Hub) Shutdown() {
     h.once.Do(func() {
         close(h.quit)

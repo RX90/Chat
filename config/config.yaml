@@ -3,3 +3,10 @@ server:
   maxHeaderBytes: 1048576 # 1MB
   readTimeout: 10s
   writeTimeout: 10s
+
+db:
+  host: "db"
+  port: "5432"
+  username: "postgres"
+  dbname: "chat"
+  sslmode: "disable"

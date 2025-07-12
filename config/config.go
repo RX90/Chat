@@ -1,55 +1,55 @@
 package config
 
 import (
+	"bytes"
+	_ "embed"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/spf13/viper"
 )
 
+//go:embed config.yaml
+var EmbeddedConfig []byte
+
 type Config struct {
-	ServerCfg *ServerConfig `yaml:"server"`
+	Server *ServerConfig `mapstructure:"server"`
+	DB     *DBConfig     `mapstructure:"db"`
 }
 
 type ServerConfig struct {
-	Port           string        `yaml:"port"`
-	MaxHeaderBytes int           `yaml:"maxHeaderBytes"`
-	ReadTimeout    time.Duration `yaml:"readTimeout"`
-	WriteTimeout   time.Duration `yaml:"writeTimeout"`
+	Port           string        `mapstructure:"port"`
+	MaxHeaderBytes int           `mapstructure:"maxHeaderBytes"`
+	ReadTimeout    time.Duration `mapstructure:"readTimeout"`
+	WriteTimeout   time.Duration `mapstructure:"writeTimeout"`
 }
 
-func NewConfig() *Config {
-	return &Config{
-		&ServerConfig{
-			Port:           viper.GetString("server.port"),
-			MaxHeaderBytes: viper.GetInt("server.maxHeaderBytes"),
-			ReadTimeout:    viper.GetDuration("server.readTimeout"),
-			WriteTimeout:   viper.GetDuration("server.writeTimeout"),
-		},
-	}
+type DBConfig struct {
+	Host     string `mapstructure:"host"`
+	Port     string `mapstructure:"port"`
+	Username string `mapstructure:"username"`
+	Password string
+	DBName   string `mapstructure:"dbname"`
+	SSLMode  string `mapstructure:"sslmode"`
 }
 
-func InitConfig() error {
-	viper.AddConfigPath("config")
-	viper.SetConfigName("config")
+func LoadConfig() (*Config, error) {
+	viper.SetConfigType("yaml")
 
-	required := []string{
-		"server.port",
-		"server.maxHeaderBytes",
-		"server.readTimeout",
-		"server.writeTimeout",
-	}
-	missing := []string{}
-
-	for _, key := range required {
-		if viper.Get(key) == "" {
-			missing = append(missing, key)
-		}
+	if err := viper.ReadConfig(bytes.NewReader(EmbeddedConfig)); err != nil {
+		return nil, err
 	}
 
-	if len(missing) > 0 {
-		return fmt.Errorf("missing required config values: %v", missing)
+	var cfg Config
+	if err := viper.Unmarshal(&cfg); err != nil {
+		return nil, err
 	}
 
-	return viper.ReadInConfig()
+	cfg.DB.Password = os.Getenv("DB_PASSWORD")
+	if cfg.DB.Password == "" {
+		return nil, fmt.Errorf("DB_PASSWORD not set")
+	}
+
+	return &cfg, nil
 }

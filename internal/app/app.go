@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -9,46 +10,56 @@ import (
 	"syscall"
 
 	"github.com/RX90/Chat/config"
+	"github.com/RX90/Chat/internal/db/postgres"
+	"github.com/RX90/Chat/internal/handler"
+	"github.com/RX90/Chat/internal/repo"
 	"github.com/RX90/Chat/internal/router"
 	"github.com/RX90/Chat/internal/server"
 	"github.com/RX90/Chat/internal/ws"
 )
 
 type App struct {
-	cfg    *config.Config
-	server *server.Server
-	hub    *ws.Hub
-	router http.Handler
+	cfg     *config.Config
+	hub     *ws.Hub
+	server  *server.Server
 }
 
-func NewApp() *App {
-	if err := config.InitConfig(); err != nil {
-		log.Fatalf("Failed to initialize config: %v", err)
+func NewApp() (*App, error) {
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return nil, fmt.Errorf("load config error: %v", err)
 	}
 
-	cfg := config.NewConfig()
-	srv := server.NewServer()
+	db, err := postgres.NewPostgresDB(cfg.DB)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get db: %v", err)
+	}
+
 	hub := ws.NewHub()
-	r := router.NewRouter(hub)
+
+	repo := repo.NewRepo(db)
+	handler := handler.NewHandler(hub, repo)
+
+	r := router.NewRouter(handler)
+	srv := server.NewServer(cfg.Server, r)
 
 	return &App{
-		cfg: cfg,
-		server: srv,
-		hub:    hub,
-		router: r,
-	}
+		cfg:     cfg,
+		hub:     hub,
+		server:  srv,
+	}, nil
 }
 
 func (a *App) Run() {
 	go func() {
-		if err := a.server.Run(a.cfg.ServerCfg, a.router); err != nil && err != http.ErrServerClosed {
+		if err := a.server.Run(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("HTTP server encountered an unexpected error: %v", err)
 		}
 	}()
 
 	go a.hub.Run()
 
-	log.Printf("Chat started on :%s\n", a.cfg.ServerCfg.Port)
+	log.Printf("Chat started on :%s\n", a.cfg.Server.Port)
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)

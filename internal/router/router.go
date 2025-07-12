@@ -1,26 +1,20 @@
 package router
 
 import (
-	"net/http"
-
-	"github.com/RX90/Chat/internal/ws"
+	"github.com/RX90/Chat/internal/handler"
 	"github.com/RX90/Chat/web"
 	"github.com/gin-gonic/gin"
 )
 
-func NewRouter(hub *ws.Hub) *gin.Engine {
+func NewRouter(h *handler.Handler) *gin.Engine {
 	router := gin.Default()
 
 	tmpl := web.ParseTemplates()
 	router.SetHTMLTemplate(tmpl)
+	router.StaticFS("/static", web.StaticFiles())
 
-	router.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "index.html", nil)
-	})
-
-	router.GET("/ws", func(c *gin.Context) {
-		ws.ServeWs(hub, c.Writer, c.Request)
-	})
+	router.GET("/", h.HandleChatPage)
+	router.GET("/ws", h.ServeWs)
 
 	return router
 }

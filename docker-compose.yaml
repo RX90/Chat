@@ -1,8 +1,28 @@
 services:
   app:
     build: ./
-    container_name: web
+    container_name: chat-app
     image: rx90/chat
-    restart: on-failure
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       - "8080:8080"
+    env_file:
+      - .env
+
+  db:
+    container_name: chat-db
+    image: postgres:16-alpine
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata:
