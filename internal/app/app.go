@@ -56,7 +56,7 @@ func NewApp() (*App, error) {
 func (a *App) Run() {
 	go func() {
 		if err := a.server.Run(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("HTTP server encountered an unexpected error: %v", err)
+			log.Printf("HTTP server encountered an unexpected error: %v", err)
 		}
 	}()
 
