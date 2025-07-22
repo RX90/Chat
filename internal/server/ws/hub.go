@@ -8,20 +8,28 @@ type Hub struct {
 	register   chan *Client
 	unregister chan *Client
 	quit       chan struct{}
-	once       sync.Once
 }
 
-func NewHub() *Hub {
-	return &Hub{
-		broadcast:  make(chan []byte),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
-		clients:    make(map[*Client]bool),
-		quit:       make(chan struct{}),
-	}
+var (
+	hubInstance *Hub
+	hubOnce     sync.Once
+)
+
+func getHub() *Hub {
+	hubOnce.Do(func() {
+		hubInstance = &Hub{
+			broadcast:  make(chan []byte),
+			register:   make(chan *Client),
+			unregister: make(chan *Client),
+			clients:    make(map[*Client]bool),
+			quit:       make(chan struct{}),
+		}
+		go hubInstance.run()
+	})
+	return hubInstance
 }
 
-func (h *Hub) Run() {
+func (h *Hub) run() {
 	for {
 		select {
 		case client := <-h.register:
@@ -50,20 +58,14 @@ func (h *Hub) Run() {
 	}
 }
 
-func (h *Hub) RegisterClient(c *Client) {
+func (h *Hub) registerClient(c *Client) {
 	h.register <- c
 }
 
-func (h *Hub) UnregisterClient(c *Client) {
+func (h *Hub) unregisterClient(c *Client) {
 	h.unregister <- c
 }
 
-func (h *Hub) BroadcastMessage(msg []byte) {
+func (h *Hub) broadcastMessage(msg []byte) {
 	h.broadcast <- msg
-}
-
-func (h *Hub) Shutdown() {
-    h.once.Do(func() {
-        close(h.quit)
-    })
 }

@@ -46,11 +46,53 @@ func LoadConfig() (*Config, error) {
 	if err := viper.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
-
 	cfg.DB.Password = os.Getenv("DB_PASSWORD")
-	if cfg.DB.Password == "" {
-		return nil, errors.New("env variable DB_PASSWORD is not set")
+
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("failed to validate config: %w", err)
 	}
 
 	return &cfg, nil
+}
+
+func (cfg *Config) Validate() error {
+	if cfg.Server == nil {
+		return errors.New("server config is required")
+	}
+	if cfg.Server.Port == "" {
+		return errors.New("server port is required")
+	}
+	if cfg.Server.MaxHeaderBytes <= 0 {
+		return errors.New("maxHeaderBytes must be positive")
+	}
+	if cfg.Server.ReadTimeout <= 0 {
+		return errors.New("readTimeout must be positive")
+	}
+	if cfg.Server.WriteTimeout <= 0 {
+		return errors.New("writeTimeout must be positive")
+	}
+
+	if cfg.DB == nil {
+		return errors.New("db config is required")
+	}
+	if cfg.DB.Host == "" {
+		return errors.New("db host is required")
+	}
+	if cfg.DB.Port == "" {
+		return errors.New("db port is required")
+	}
+	if cfg.DB.Username == "" {
+		return errors.New("db username is required")
+	}
+	if cfg.DB.Password == "" {
+		return errors.New("db password is required")
+	}
+	if cfg.DB.DBName == "" {
+		return errors.New("db name is required")
+	}
+	if cfg.DB.SSLMode == "" {
+		return errors.New("db sslmode is required")
+	}
+
+	return nil
 }

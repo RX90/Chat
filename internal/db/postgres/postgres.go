@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/RX90/Chat/config"
@@ -67,9 +68,15 @@ func applyMigrations(cfg *config.DBConfig) error {
 		return fmt.Errorf("failed to create migrate instance: %w", err)
 	}
 
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+	if err := m.Up(); err != nil {
+		if err == migrate.ErrNoChange {
+			log.Println("no new migrations to apply")
+			return nil
+		}
 		return fmt.Errorf("failed to up migrations: %w", err)
 	}
+
+	log.Println("migrations successfully applied")
 
 	return nil
 }

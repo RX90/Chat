@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/RX90/Chat/internal/domain"
-	"github.com/RX90/Chat/internal/repo"
+	"github.com/RX90/Chat/internal/service"
 	"github.com/gorilla/websocket"
 )
 
@@ -29,24 +29,29 @@ var Upgrader = websocket.Upgrader{
 }
 
 type Client struct {
-	hub  *Hub
-	conn *websocket.Conn
-	send chan []byte
+	hub     *Hub
+	conn    *websocket.Conn
+	send    chan []byte
+	service service.ChatService
 }
 
-func NewClient(hub *Hub, conn *websocket.Conn) *Client {
+func NewClient(conn *websocket.Conn, service service.ChatService) *Client {
+	h := getHub()
 	c := &Client{
-		hub:  hub,
-		conn: conn,
-		send: make(chan []byte, bufferSize),
+		hub:     h,
+		conn:    conn,
+		send:    make(chan []byte, bufferSize),
+		service: service,
 	}
-	hub.RegisterClient(c)
+	h.registerClient(c)
+	go c.readPump()
+	go c.writePump()
 	return c
 }
 
-func (c *Client) ReadPump(repo *repo.Repo) {
+func (c *Client) readPump() {
 	defer func() {
-		c.hub.UnregisterClient(c)
+		c.hub.unregisterClient(c)
 		c.conn.Close()
 	}()
 
@@ -70,24 +75,23 @@ func (c *Client) ReadPump(repo *repo.Repo) {
 			log.Printf("failed to unmarshall JSON in readPump: %v", err)
 			continue
 		}
-
-		msg, err = repo.CreateMessage(msg)
+		updatedMsg, err := c.service.CreateMessage(msg)
 		if err != nil {
 			log.Printf("failed to create message: %v", err)
 			break
 		}
 
-		jsonMsg, err := json.Marshal(msg)
+		jsonMsg, err := json.Marshal(updatedMsg)
 		if err != nil {
 			log.Printf("failed to marshal JSON after CreateMessage: %v", err)
 			continue
 		}
 
-		c.hub.BroadcastMessage(jsonMsg)
+		c.hub.broadcastMessage(jsonMsg)
 	}
 }
 
-func (c *Client) WritePump() {
+func (c *Client) writePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()

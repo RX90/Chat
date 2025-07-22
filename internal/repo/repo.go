@@ -1,13 +1,28 @@
 package repo
 
 import (
+	"github.com/RX90/Chat/internal/domain"
 	"gorm.io/gorm"
 )
 
 type Repo struct {
-	db *gorm.DB
+	Auth AuthRepo
+	Chat ChatRepo
+}
+
+type AuthRepo interface {
+	CreateUser(user domain.User) error
+	GetUser(email string) (*domain.User, error)
+}
+
+type ChatRepo interface {
+	CreateMessage(msg domain.Message) (*domain.Message, error)
+	GetMessages() (*[]domain.Message, error)
 }
 
 func NewRepo(db *gorm.DB) *Repo {
-	return &Repo{db: db}
+	return &Repo{
+		Auth: newAuthRepo(db),
+		Chat: newChatRepo(db),
+	}
 }

@@ -8,26 +8,25 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/RX90/Chat/config"
 	"github.com/RX90/Chat/internal/db/postgres"
 	"github.com/RX90/Chat/internal/handler"
 	"github.com/RX90/Chat/internal/repo"
-	"github.com/RX90/Chat/internal/router"
 	"github.com/RX90/Chat/internal/server"
-	"github.com/RX90/Chat/internal/ws"
+	"github.com/RX90/Chat/internal/service"
 )
 
 type App struct {
-	cfg     *config.Config
-	hub     *ws.Hub
-	server  *server.Server
+	cfg    *config.Config
+	server *server.Server
 }
 
 func NewApp() (*App, error) {
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		return nil, fmt.Errorf("load config error: %w", err)
+		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
 	db, err := postgres.NewPostgresDB(cfg.DB)
@@ -35,21 +34,19 @@ func NewApp() (*App, error) {
 		return nil, fmt.Errorf("failed to get db: %w", err)
 	}
 
-	hub := ws.NewHub()
-
 	repo := repo.NewRepo(db)
-	handler := handler.NewHandler(hub, repo)
+	service := service.NewService(repo)
+	handler := handler.NewHandler(service)
 
-	r, err := router.NewRouter(handler)
+	r, err := server.NewRouter(handler)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get router: %w", err)
 	}
 	srv := server.NewServer(cfg.Server, r)
 
 	return &App{
-		cfg:     cfg,
-		hub:     hub,
-		server:  srv,
+		cfg:    cfg,
+		server: srv,
 	}, nil
 }
 
@@ -60,19 +57,16 @@ func (a *App) Run() {
 		}
 	}()
 
-	go a.hub.Run()
-
 	log.Printf("Chat started on :%s\n", a.cfg.Server.Port)
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
 	<-quit
 
-	log.Println("Shutting down HTTP server...")
-	if err := a.server.Shutdown(context.Background()); err != nil {
-		log.Printf("Error during HTTP server shutdown: %v\n", err)
-	}
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	log.Println("Shutting down WebSocket hub...")
-	a.hub.Shutdown()
+	if err := a.server.Shutdown(shutdownCtx); err != nil {
+		log.Printf("Shutdown server: %v", err)
+	}
 }
