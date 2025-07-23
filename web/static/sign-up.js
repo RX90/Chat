@@ -15,12 +15,25 @@ document.getElementById('signup-form').addEventListener('submit', async function
     });
 
     if (response.ok) {
-      alert('Registered successfully!');
-      this.reset();
+      console.log('Registered successfully! Signing in...');
+      const signInResponse = await fetch('/api/auth/sign-in', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      if (signInResponse.ok) {
+        const data = await signInResponse.json();
+        localStorage.setItem("accessToken", data.token);
+        this.reset();
+        window.location.href = '/';
+      } else {
+        console.log('Sign-in after registration failed with status: ' + signInResponse.status);
+      }
     } else {
-      alert('Registration failed with status: ' + response.status);
+      console.log('Registration failed with status: ' + response.status);
     }
   } catch (err) {
-    alert('Error: ' + err.message);
+    console.log('Error: ' + err.message);
   }
 });

@@ -34,6 +34,9 @@ func NewRouter(h *handler.Handler) (*gin.Engine, error) {
 		auth.GET("/sign-up", func(c *gin.Context) {
 			c.HTML(http.StatusOK, "sign-up.html", nil)
 		})
+		auth.GET("/sign-in", func(c *gin.Context) {
+			c.HTML(http.StatusOK, "sign-in.html", nil)
+		})
 	}
 
 	api := router.Group("/api")
@@ -41,6 +44,7 @@ func NewRouter(h *handler.Handler) (*gin.Engine, error) {
 		auth := api.Group("/auth")
 		{
 			auth.POST("/sign-up", h.Auth.SignUp)
+			auth.POST("/sign-in", h.Auth.SignIn)
 		}
 	}
 

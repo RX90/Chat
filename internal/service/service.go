@@ -3,6 +3,7 @@ package service
 import (
 	"github.com/RX90/Chat/internal/domain"
 	"github.com/RX90/Chat/internal/repo"
+	"github.com/google/uuid"
 )
 
 type Service struct {
@@ -11,8 +12,9 @@ type Service struct {
 }
 
 type AuthService interface {
-	CreateUser(user domain.User) error
-	GetUser(email string) (*domain.User, error)
+	CreateUser(user *domain.User) error
+	GetUserByEmail(email string) (*domain.User, error)
+	NewRefreshToken(userID uuid.UUID) (*domain.Token, error)
 }
 
 type ChatService interface {

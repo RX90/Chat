@@ -11,8 +11,9 @@ type Repo struct {
 }
 
 type AuthRepo interface {
-	CreateUser(user domain.User) error
-	GetUser(email string) (*domain.User, error)
+	CreateUser(user *domain.User) error
+	GetUserByEmail(email string) (*domain.User, error)
+	UpsertRefreshToken(token *domain.Token) error
 }
 
 type ChatRepo interface {
