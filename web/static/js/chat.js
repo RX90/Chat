@@ -1,5 +1,6 @@
 window.onload = async function () {
   let conn;
+  let isSignUpMode = false;
 
   const msg = document.getElementById("msg");
   const log = document.getElementById("log");
@@ -14,10 +15,7 @@ window.onload = async function () {
   const submitButton = document.getElementById("submit-button");
   const logoutButton = document.getElementById("logout-button");
 
-  let isSignUpMode = false;
-
-  toggleLink.addEventListener("click", () => {
-    isSignUpMode = !isSignUpMode;
+  function updateFormMode() {
     usernameGroup.style.display = isSignUpMode ? "block" : "none";
     formTitle.textContent = isSignUpMode ? "Создание аккаунта" : "Добро пожаловать";
     formSubtitle.textContent = isSignUpMode
@@ -27,6 +25,13 @@ window.onload = async function () {
     toggleLink.textContent = isSignUpMode ? "Войти" : "Создать";
     signinError.textContent = "";
     signinForm.reset();
+  }
+
+  updateFormMode();
+
+  toggleLink.addEventListener("click", () => {
+    isSignUpMode = !isSignUpMode;
+    updateFormMode();
   });
 
   function validateEmail(email) {
@@ -226,6 +231,8 @@ window.onload = async function () {
     localStorage.removeItem("accessToken");
     if (conn) conn.close();
     logoutButton.style.display = "none";
+    isSignUpMode = false;
+    updateFormMode();
     signinModal.style.display = "flex";
     msg.disabled = true;
     log.innerHTML = "";

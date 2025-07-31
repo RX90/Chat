@@ -13,7 +13,7 @@ type Service struct {
 }
 
 type AuthService interface {
-	CreateUser(user *entities.User) error
+	CreateUser(user *dto.SignUpUser) error
 	GetUserByEmail(email string) (*entities.User, error)
 	NewRefreshToken(userID uuid.UUID) (*entities.RefreshToken, error)
 	CheckRefreshToken(userID uuid.UUID, refreshToken string) error
@@ -21,8 +21,8 @@ type AuthService interface {
 }
 
 type ChatService interface {
-	CreateMessage(msg *entities.Message) (*dto.CreatedMessage, error)
-	GetMessages() (*[]dto.CreatedMessage, error)
+	CreateMessage(msg *entities.Message) (dto.OutgoingMessage, error)
+	GetMessages() ([]dto.OutgoingMessage, error)
 }
 
 func NewService(repo *repo.Repo) *Service {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/RX90/Chat/internal/domain/dto"
 	"github.com/RX90/Chat/internal/domain/entities"
 	"github.com/RX90/Chat/internal/repo"
 	"github.com/google/uuid"
@@ -16,27 +17,32 @@ type authService struct {
 }
 
 var (
-	refreshTTL = 5 * 24 * time.Hour
+	refreshTTL = 5 * 1 * time.Minute
 )
 
 func newAuthService(r repo.AuthRepo) AuthService {
 	return &authService{repo: r}
 }
 
-func (s *authService) CreateUser(user *entities.User) error {
+func (s *authService) CreateUser(user *dto.SignUpUser) error {
 	userID, err := uuid.NewRandom()
 	if err != nil {
 		return fmt.Errorf("can't generate UUID: %w", err)
 	}
-	user.ID = userID
 
 	hashedPassword, err := generatePasswordHash(user.Password)
 	if err != nil {
 		return fmt.Errorf("can't generate password hash: %w", err)
 	}
-	user.Password = hashedPassword
 
-	return s.repo.CreateUser(user)
+	u := &entities.User{
+		ID:       userID,
+		Username: user.Username,
+		Password: hashedPassword,
+		Email:    user.Email,
+	}
+
+	return s.repo.CreateUser(u)
 }
 
 func (s *authService) GetUserByEmail(email string) (*entities.User, error) {

@@ -14,10 +14,10 @@ func newChatService(r repo.ChatRepo) ChatService {
 	return &chatService{repo: r}
 }
 
-func (s *chatService) CreateMessage(msg *entities.Message) (*dto.CreatedMessage, error) {
+func (s *chatService) CreateMessage(msg *entities.Message) (dto.OutgoingMessage, error) {
 	return s.repo.CreateMessage(msg)
 }
 
-func (s *chatService) GetMessages() (*[]dto.CreatedMessage, error) {
+func (s *chatService) GetMessages() ([]dto.OutgoingMessage, error) {
 	return s.repo.GetMessages()
 }

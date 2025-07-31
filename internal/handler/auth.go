@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/RX90/Chat/internal/domain/entities"
+	"github.com/RX90/Chat/internal/domain/dto"
 	"github.com/RX90/Chat/internal/middleware"
 	"github.com/RX90/Chat/internal/service"
 	"github.com/gin-gonic/gin"
@@ -28,7 +28,7 @@ func newAuthHandler(s service.AuthService) *authHandler {
 }
 
 func (h *authHandler) SignUp(c *gin.Context) {
-	var input entities.User
+	var input dto.SignUpUser
 
 	if err := c.BindJSON(&input); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"err": fmt.Sprintf("failed to bind JSON: %v", err)})
@@ -44,7 +44,7 @@ func (h *authHandler) SignUp(c *gin.Context) {
 }
 
 func (h *authHandler) SignIn(c *gin.Context) {
-	var input entities.User
+	var input dto.SignInUser
 
 	if err := c.BindJSON(&input); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"err": fmt.Sprintf("failed to bind JSON: %v", err)})

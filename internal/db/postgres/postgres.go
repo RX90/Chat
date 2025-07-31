@@ -2,13 +2,10 @@ package postgres
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/RX90/Chat/config"
-	"github.com/RX90/Chat/migrations"
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/source/iofs"
+	"github.com/RX90/Chat/internal/domain/entities"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
@@ -47,36 +44,23 @@ func NewPostgresDB(cfg *config.DBConfig) (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	if err = applyMigrations(cfg); err != nil {
-		sqlDB.Close()
-		return nil, fmt.Errorf("failed to apply migrations: %w", err)
+	if err := db.AutoMigrate(&entities.User{}, &entities.Message{}, &entities.RefreshToken{}); err != nil {
+		return nil, fmt.Errorf("failed to automigrate: %w", err)
+	}
+
+	if err := applyCustomIndexes(db); err != nil {
+		return nil, fmt.Errorf("failed to apply custom indexes: %w", err)
 	}
 
 	return db, nil
 }
 
-func applyMigrations(cfg *config.DBConfig) error {
-	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", cfg.Username, cfg.Password, cfg.Host, cfg.Port, cfg.DBName, cfg.SSLMode)
-
-	d, err := iofs.New(migrations.MigrationFS, ".")
-	if err != nil {
-		return fmt.Errorf("failed to create iofs driver: %w", err)
+func applyCustomIndexes(db *gorm.DB) error {
+	if err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique ON users (LOWER(email))`).Error; err != nil {
+		return err
 	}
-
-	m, err := migrate.NewWithSourceInstance("iofs", d, dbURL)
-	if err != nil {
-		return fmt.Errorf("failed to create migrate instance: %w", err)
+	if err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique ON users (LOWER(username))`).Error; err != nil {
+		return err
 	}
-
-	if err := m.Up(); err != nil {
-		if err == migrate.ErrNoChange {
-			log.Println("no new migrations to apply")
-			return nil
-		}
-		return fmt.Errorf("failed to up migrations: %w", err)
-	}
-
-	log.Println("migrations successfully applied")
-
 	return nil
 }

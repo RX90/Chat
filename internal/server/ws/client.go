@@ -88,9 +88,12 @@ func NewClient(conn *websocket.Conn, service service.ChatService) {
 
 	h.registerClient(c)
 
-	authOk := dto.WSServerMessage{Type: "auth_ok"}
-	msg, _ := json.Marshal(authOk)
-	_ = c.SendMessage(msg)
+	msg := []byte(`{"type":"auth_ok"}`)
+	if err := c.SendMessage(msg); err != nil {
+		log.Printf("send message error: %v", err)
+		conn.Close()
+		return
+	}
 
 	go c.readPump()
 	go c.writePump()
@@ -111,7 +114,7 @@ func (c *Client) readPump() {
 			break
 		}
 
-		var incoming dto.WSClientMessage
+		var incoming dto.IncomingMessage
 		if err := json.Unmarshal(msgBytes, &incoming); err != nil {
 			log.Printf("invalid message format: %v", err)
 			continue
@@ -125,7 +128,6 @@ func (c *Client) readPump() {
 				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "invalid token"))
 				return
 			}
-
 			c.userID = uuid.MustParse(claims.Subject)
 			c.tokenExpiry = time.Unix(claims.ExpiresAt, 0)
 		case "history":
@@ -140,7 +142,7 @@ func (c *Client) readPump() {
 				log.Printf("failed to get history: %v", err)
 				continue
 			}
-			for _, msg := range *history {
+			for _, msg := range history {
 				jsonMsg, err := json.Marshal(msg)
 				if err != nil {
 					log.Printf("marshal error: %v", err)

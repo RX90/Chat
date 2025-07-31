@@ -1,1 +1,0 @@
-ALTER TABLE refresh_tokens RENAME TO tokens;

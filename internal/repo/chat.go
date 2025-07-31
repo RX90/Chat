@@ -14,12 +14,13 @@ func newChatRepo(db *gorm.DB) ChatRepo {
 	return &chatRepo{db: db}
 }
 
-func (r *chatRepo) CreateMessage(msg *entities.Message) (*dto.CreatedMessage, error) {
+func (r *chatRepo) CreateMessage(msg *entities.Message) (dto.OutgoingMessage, error) {
 	if err := r.db.Create(msg).Error; err != nil {
-		return nil, err
+		return dto.OutgoingMessage{}, err
 	}
 
-	var msgOut dto.CreatedMessage
+	var msgOut dto.OutgoingMessage
+
 	err := r.db.
 		Table("messages").
 		Select("messages.id, messages.content, messages.created_at, users.username").
@@ -27,16 +28,18 @@ func (r *chatRepo) CreateMessage(msg *entities.Message) (*dto.CreatedMessage, er
 		Where("messages.id = ?", msg.ID).
 		Scan(&msgOut).Error
 
-	return &msgOut, err
+	return msgOut, err
 }
 
-func (r *chatRepo) GetMessages() (*[]dto.CreatedMessage, error) {
-	var msgs []dto.CreatedMessage
+func (r *chatRepo) GetMessages() ([]dto.OutgoingMessage, error) {
+	var msgs []dto.OutgoingMessage
+
 	err := r.db.
 		Table("messages").
 		Select("messages.id, messages.content, messages.created_at, users.username").
 		Joins("left join users on users.id = messages.user_id").
 		Order("messages.created_at ASC").
 		Scan(&msgs).Error
-	return &msgs, err
+
+	return msgs, err
 }

@@ -7,8 +7,8 @@ import (
 )
 
 type Message struct {
-	ID        int       `json:"id"`
-	Content   string    `json:"content"`
-	CreatedAt time.Time `gorm:"column:created_at" json:"createdAt"`
-	UserID    uuid.UUID `json:"user_id"`
+	ID        int       `gorm:"primaryKey;autoIncrement"`
+	Content   string    `gorm:"type:text;not null"`
+	CreatedAt time.Time `gorm:"type:timestamp with time zone;autoCreateTime"`
+	UserID    uuid.UUID `gorm:"type:uuid;index;constraint:OnDelete:SET NULL;"`
 }

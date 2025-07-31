@@ -21,7 +21,7 @@ const (
 var (
 	issuer     = "chat-app"
 	signingKey = os.Getenv("AUTH_KEY")
-	accessTTL  = 15 * time.Minute
+	accessTTL  = 2 * time.Minute
 )
 
 func NewAccessToken(userID string) (string, error) {
