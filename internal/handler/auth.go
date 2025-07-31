@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/RX90/Chat/internal/domain"
+	"github.com/RX90/Chat/internal/domain/entities"
 	"github.com/RX90/Chat/internal/middleware"
 	"github.com/RX90/Chat/internal/service"
 	"github.com/gin-gonic/gin"
@@ -14,9 +14,9 @@ import (
 var (
 	cookieName     = "refreshToken"
 	cookiePath     = "/"
-	cookieDomain   = "localhost"
 	cookieHttpOnly = true
-	cookieSameSite = http.SameSiteStrictMode
+	cookieSameSite = http.SameSiteLaxMode
+	cookieMaxAge   = -1
 )
 
 type authHandler struct {
@@ -28,7 +28,7 @@ func newAuthHandler(s service.AuthService) *authHandler {
 }
 
 func (h *authHandler) SignUp(c *gin.Context) {
-	var input domain.User
+	var input entities.User
 
 	if err := c.BindJSON(&input); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"err": fmt.Sprintf("failed to bind JSON: %v", err)})
@@ -44,7 +44,7 @@ func (h *authHandler) SignUp(c *gin.Context) {
 }
 
 func (h *authHandler) SignIn(c *gin.Context) {
-	var input domain.User
+	var input entities.User
 
 	if err := c.BindJSON(&input); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"err": fmt.Sprintf("failed to bind JSON: %v", err)})
@@ -79,7 +79,6 @@ func (h *authHandler) SignIn(c *gin.Context) {
 		Value:    token.RefreshToken,
 		Expires:  token.ExpiresAt,
 		Path:     cookiePath,
-		Domain:   cookieDomain,
 		HttpOnly: cookieHttpOnly,
 		SameSite: cookieSameSite,
 	}
@@ -87,4 +86,76 @@ func (h *authHandler) SignIn(c *gin.Context) {
 	http.SetCookie(c.Writer, cookie)
 
 	c.JSON(http.StatusOK, gin.H{"token": accessToken})
+}
+
+func (h *authHandler) SignOut(c *gin.Context) {
+	userID, err := middleware.GetUserID(c)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"err": fmt.Sprintf("failed to get userID: %v", err)})
+		return
+	}
+
+	if err := h.service.DeleteRefreshToken(userID); err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"err": fmt.Sprintf("failed to delete refresh token: %v", err)})
+		return
+	}
+
+	cookie := &http.Cookie{
+		Name:   cookieName,
+		Value:  "",
+		Path:   cookiePath,
+		MaxAge: cookieMaxAge,
+	}
+
+	http.SetCookie(c.Writer, cookie)
+
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+func (h *authHandler) Refresh(c *gin.Context) {
+	userID, err := middleware.GetUserID(c)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"err": fmt.Sprintf("failed to get userID: %v", err)})
+		return
+	}
+
+	refreshToken, err := c.Cookie("refreshToken")
+	if err != nil || refreshToken == "" {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"err": "refresh token is missing"})
+		return
+	}
+
+	if err := h.service.CheckRefreshToken(userID, refreshToken); err != nil {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"err": fmt.Sprintf("refresh token is invalid: %v", err)})
+		return
+	}
+
+	accessToken, err := middleware.NewAccessToken(userID.String())
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"err": fmt.Sprintf("can't create access token: %v", err)})
+		return
+	}
+
+	token, err := h.service.NewRefreshToken(userID)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"err": fmt.Sprintf("can't create refresh token: %v", err)})
+		return
+	}
+
+	cookie := &http.Cookie{
+		Name:     cookieName,
+		Value:    token.RefreshToken,
+		Expires:  token.ExpiresAt,
+		Path:     cookiePath,
+		HttpOnly: cookieHttpOnly,
+		SameSite: cookieSameSite,
+	}
+
+	http.SetCookie(c.Writer, cookie)
+
+	c.JSON(http.StatusOK, gin.H{"token": accessToken})
+}
+
+func (h *authHandler) Verify(c *gin.Context) {
+	c.Status(http.StatusOK)
 }

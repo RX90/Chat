@@ -16,8 +16,10 @@ services:
     image: postgres:16-alpine
     volumes:
       - pgdata:/var/lib/postgresql/data
-    env_file:
-      - .env
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: chat
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres"]
       interval: 5s

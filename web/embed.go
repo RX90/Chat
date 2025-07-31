@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-//go:embed templates static
+//go:embed templates/* static/**/*
 var content embed.FS
 
 func ParseTemplates() (*template.Template, error) {
@@ -16,7 +16,6 @@ func ParseTemplates() (*template.Template, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse embedded templates: %w", err)
 	}
-
 	return tmpl, nil
 }
 

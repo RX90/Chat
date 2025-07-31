@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/RX90/Chat/internal/domain"
+	"github.com/RX90/Chat/internal/domain/entities"
 	"github.com/RX90/Chat/internal/repo"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -16,14 +16,14 @@ type authService struct {
 }
 
 var (
-	refreshTTL = 15 * 24 * time.Hour
+	refreshTTL = 5 * 24 * time.Hour
 )
 
 func newAuthService(r repo.AuthRepo) AuthService {
 	return &authService{repo: r}
 }
 
-func (s *authService) CreateUser(user *domain.User) error {
+func (s *authService) CreateUser(user *entities.User) error {
 	userID, err := uuid.NewRandom()
 	if err != nil {
 		return fmt.Errorf("can't generate UUID: %w", err)
@@ -39,7 +39,7 @@ func (s *authService) CreateUser(user *domain.User) error {
 	return s.repo.CreateUser(user)
 }
 
-func (s *authService) GetUserByEmail(email string) (*domain.User, error) {
+func (s *authService) GetUserByEmail(email string) (*entities.User, error) {
 	return s.repo.GetUserByEmail(email)
 }
 
@@ -51,7 +51,7 @@ func generatePasswordHash(password string) (string, error) {
 	return string(hash), nil
 }
 
-func (s *authService) NewRefreshToken(userID uuid.UUID) (*domain.Token, error) {
+func (s *authService) NewRefreshToken(userID uuid.UUID) (*entities.RefreshToken, error) {
 	b := make([]byte, 32)
 	_, err := rand.Read(b)
 	if err != nil {
@@ -61,11 +61,19 @@ func (s *authService) NewRefreshToken(userID uuid.UUID) (*domain.Token, error) {
 	tokenString := fmt.Sprintf("%x", b)
 	expiresAt := time.Now().Add(refreshTTL)
 
-	refreshToken := &domain.Token{
-		UserID: userID,
+	refreshToken := &entities.RefreshToken{
+		UserID:       userID,
 		RefreshToken: tokenString,
-		ExpiresAt: expiresAt,
+		ExpiresAt:    expiresAt,
 	}
 
 	return refreshToken, s.repo.UpsertRefreshToken(refreshToken)
+}
+
+func (s *authService) CheckRefreshToken(userID uuid.UUID, refreshToken string) error {
+	return s.repo.CheckRefreshToken(userID, refreshToken)
+}
+
+func (s *authService) DeleteRefreshToken(userID uuid.UUID) error {
+	return s.repo.DeleteRefreshToken(userID)
 }

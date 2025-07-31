@@ -6,8 +6,11 @@ import (
 	"log"
 	"time"
 
-	"github.com/RX90/Chat/internal/domain"
+	"github.com/RX90/Chat/internal/domain/dto"
+	"github.com/RX90/Chat/internal/domain/entities"
+	"github.com/RX90/Chat/internal/middleware"
 	"github.com/RX90/Chat/internal/service"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -29,24 +32,68 @@ var Upgrader = websocket.Upgrader{
 }
 
 type Client struct {
-	hub     *Hub
-	conn    *websocket.Conn
-	send    chan []byte
-	service service.ChatService
+	hub         *Hub
+	conn        *websocket.Conn
+	send        chan []byte
+	service     service.ChatService
+	userID      uuid.UUID
+	tokenExpiry time.Time
 }
 
-func NewClient(conn *websocket.Conn, service service.ChatService) *Client {
-	h := getHub()
-	c := &Client{
-		hub:     h,
-		conn:    conn,
-		send:    make(chan []byte, bufferSize),
-		service: service,
+func NewClient(conn *websocket.Conn, service service.ChatService) {
+	conn.SetReadLimit(maxMessageSize)
+	conn.SetReadDeadline(time.Now().Add(pongWait))
+	conn.SetPongHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
+	_, authMsg, err := conn.ReadMessage()
+	if err != nil {
+		log.Printf("failed to read auth message: %v", err)
+		conn.Close()
+		return
 	}
+
+	var init map[string]string
+	if err := json.Unmarshal(authMsg, &init); err != nil {
+		log.Printf("invalid auth message format: %v", err)
+		conn.Close()
+		return
+	}
+
+	if init["type"] != "auth" || init["token"] == "" {
+		log.Println("missing auth token")
+		conn.Close()
+		return
+	}
+
+	claims, err := middleware.ParseAccessToken(init["token"])
+	if err != nil {
+		log.Printf("client auth failed: %v", err)
+		conn.Close()
+		return
+	}
+
+	h := getHub()
+
+	c := &Client{
+		hub:         h,
+		conn:        conn,
+		send:        make(chan []byte, bufferSize),
+		service:     service,
+		userID:      uuid.MustParse(claims.Subject),
+		tokenExpiry: time.Unix(claims.ExpiresAt, 0),
+	}
+
 	h.registerClient(c)
+
+	authOk := dto.WSServerMessage{Type: "auth_ok"}
+	msg, _ := json.Marshal(authOk)
+	_ = c.SendMessage(msg)
+
 	go c.readPump()
 	go c.writePump()
-	return c
 }
 
 func (c *Client) readPump() {
@@ -55,39 +102,88 @@ func (c *Client) readPump() {
 		c.conn.Close()
 	}()
 
-	c.conn.SetReadLimit(maxMessageSize)
-	c.conn.SetReadDeadline(time.Now().Add(pongWait))
-	c.conn.SetPongHandler(func(string) error {
-		c.conn.SetReadDeadline(time.Now().Add(pongWait))
-		return nil
-	})
-
 	for {
 		_, msgBytes, err := c.conn.ReadMessage()
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway, websocket.CloseNoStatusReceived, websocket.CloseAbnormalClosure) {
 				log.Printf("ws: unexpected close: %v", err)
 			}
 			break
 		}
-		var msg domain.Message
-		if err := json.Unmarshal(msgBytes, &msg); err != nil {
-			log.Printf("failed to unmarshall JSON in readPump: %v", err)
-			continue
-		}
-		updatedMsg, err := c.service.CreateMessage(msg)
-		if err != nil {
-			log.Printf("failed to create message: %v", err)
-			break
-		}
 
-		jsonMsg, err := json.Marshal(updatedMsg)
-		if err != nil {
-			log.Printf("failed to marshal JSON after CreateMessage: %v", err)
+		var incoming dto.WSClientMessage
+		if err := json.Unmarshal(msgBytes, &incoming); err != nil {
+			log.Printf("invalid message format: %v", err)
 			continue
 		}
 
-		c.hub.broadcastMessage(jsonMsg)
+		switch incoming.Type {
+		case "auth":
+			claims, err := middleware.ParseAccessToken(incoming.Token)
+			if err != nil {
+				log.Printf("auth failed: %v", err)
+				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "invalid token"))
+				return
+			}
+
+			c.userID = uuid.MustParse(claims.Subject)
+			c.tokenExpiry = time.Unix(claims.ExpiresAt, 0)
+		case "history":
+			if time.Now().After(c.tokenExpiry) {
+				log.Printf("token expired for user %s", c.userID)
+				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "token expired"))
+				return
+			}
+
+			history, err := c.service.GetMessages()
+			if err != nil {
+				log.Printf("failed to get history: %v", err)
+				continue
+			}
+			for _, msg := range *history {
+				jsonMsg, err := json.Marshal(msg)
+				if err != nil {
+					log.Printf("marshal error: %v", err)
+					continue
+				}
+				if err := c.SendMessage(jsonMsg); err != nil {
+					log.Printf("send error: %v", err)
+					break
+				}
+			}
+		case "message":
+			if time.Now().After(c.tokenExpiry) {
+				log.Printf("token expired for user %s", c.userID)
+				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "token expired"))
+				return
+			}
+
+			msg := entities.Message{
+				Content: incoming.Content,
+				UserID:  c.userID,
+			}
+
+			if err := json.Unmarshal(msgBytes, &msg); err != nil {
+				log.Printf("message unmarshal error: %v", err)
+				continue
+			}
+
+			createdMsg, err := c.service.CreateMessage(&msg)
+			if err != nil {
+				log.Printf("failed to create message: %v", err)
+				break
+			}
+
+			jsonMsg, err := json.Marshal(createdMsg)
+			if err != nil {
+				log.Printf("marshal error: %v", err)
+				continue
+			}
+
+			c.hub.broadcastMessage(jsonMsg)
+		default:
+			log.Printf("unknown message type: %s", incoming.Type)
+		}
 	}
 }
 
@@ -103,6 +199,12 @@ func (c *Client) writePump() {
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+
+			if time.Now().After(c.tokenExpiry) {
+				log.Printf("token expired during send for user %s", c.userID)
+				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "token expired"))
 				return
 			}
 

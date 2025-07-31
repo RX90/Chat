@@ -1,7 +1,9 @@
 package repo
 
 import (
-	"github.com/RX90/Chat/internal/domain"
+	"github.com/RX90/Chat/internal/domain/dto"
+	"github.com/RX90/Chat/internal/domain/entities"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -11,14 +13,16 @@ type Repo struct {
 }
 
 type AuthRepo interface {
-	CreateUser(user *domain.User) error
-	GetUserByEmail(email string) (*domain.User, error)
-	UpsertRefreshToken(token *domain.Token) error
+	CreateUser(user *entities.User) error
+	GetUserByEmail(email string) (*entities.User, error)
+	UpsertRefreshToken(token *entities.RefreshToken) error
+	CheckRefreshToken(userID uuid.UUID, refreshToken string) error
+	DeleteRefreshToken(userID uuid.UUID) error
 }
 
 type ChatRepo interface {
-	CreateMessage(msg domain.Message) (*domain.Message, error)
-	GetMessages() (*[]domain.Message, error)
+	CreateMessage(msg *entities.Message) (*dto.CreatedMessage, error)
+	GetMessages() (*[]dto.CreatedMessage, error)
 }
 
 func NewRepo(db *gorm.DB) *Repo {

@@ -46,7 +46,7 @@ func LoadConfig() (*Config, error) {
 	if err := viper.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
-	cfg.DB.Password = os.Getenv("DB_PASSWORD")
+	cfg.DB.Password = os.Getenv("POSTGRES_PASSWORD")
 
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("failed to validate config: %w", err)

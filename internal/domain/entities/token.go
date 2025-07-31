@@ -1,4 +1,4 @@
-package domain
+package entities
 
 import (
 	"time"
@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type Token struct {
+type RefreshToken struct {
 	ID           int
 	UserID       uuid.UUID
 	RefreshToken string

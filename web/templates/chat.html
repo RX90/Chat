@@ -1,18 +1,63 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chat Example</title>
-    <link rel="stylesheet" href="/static/chat.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Вайб-чат</title>
+    <link rel="stylesheet" href="/static/css/chat.css" />
   </head>
   <body>
+    <div id="scale-wrapper"></div>
+
+    <header id="topbar">
+      <div class="title-container">
+        <div class="chat-title">Вайб-чат</div>
+        <img src="/static/img/skeleton-dance.gif" alt="Logo" class="chat-logo"/>
+      </div>
+      <button id="logout-button" style="display: none">Выйти</button>
+    </header>
+
     <div id="log"></div>
+
     <form id="form">
-      <input type="text" id="msg" size="64" autofocus />
+      <input type="text" id="msg" size="64" autofocus autocomplete="off" />
       <input type="submit" value="ОТПРАВИТЬ" />
     </form>
+
     <button id="scrollToBottom" title="Scroll to bottom">↓</button>
-    <script src="/static/chat.js"></script>
+
+    <div id="signin-modal">
+      <div class="modal-content">
+        <h2 id="form-title">Добро пожаловать</h2>
+        <p class="subtitle" id="form-subtitle">Войдите в свой аккаунт, чтобы продолжить</p>
+
+        <form id="signin-form" novalidate>
+          <div class="input-group floating">
+            <input type="email" id="email" required placeholder=" " />
+            <label for="email">Email</label>
+          </div>
+
+          <div class="input-group floating" id="username-group" style="display: none">
+            <input type="text" id="username" required placeholder=" " />
+            <label for="username" id="username-label">Имя пользователя</label>
+          </div>
+
+          <div class="input-group floating">
+            <input type="password" id="password" required placeholder=" " />
+            <label for="password">Пароль</label>
+          </div>
+
+          <div id="signin-error"></div>
+
+          <button type="submit" id="submit-button">Войти</button>
+
+          <div id="toggle-link-container">
+            Ещё нет аккаунта? <span id="toggle-link">Создать</span>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="/static/js/chat.js"></script>
   </body>
 </html>
