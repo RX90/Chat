@@ -17,7 +17,7 @@ type authService struct {
 }
 
 var (
-	refreshTTL = 5 * 1 * time.Minute
+	refreshTTL = 15 * 24 * time.Hour
 )
 
 func newAuthService(r repo.AuthRepo) AuthService {
