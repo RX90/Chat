@@ -346,7 +346,7 @@ window.onload = async function () {
       conn = null;
     }
 
-    conn = new WebSocket("ws://" + document.location.host + "/ws?accessToken=" + encodeURIComponent(token));
+    conn = new WebSocket("ws://localhost:8080/ws?accessToken=" + encodeURIComponent(token));
 
     conn.onopen = function () {
       conn.send(JSON.stringify({ type: "auth", token }));

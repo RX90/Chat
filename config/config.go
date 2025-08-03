@@ -17,6 +17,7 @@ var EmbeddedConfig []byte
 type Config struct {
 	Server *ServerConfig `mapstructure:"server"`
 	DB     *DBConfig     `mapstructure:"db"`
+	CORS   *CORSConfig   `mapstructure:"cors"`
 }
 
 type ServerConfig struct {
@@ -33,6 +34,15 @@ type DBConfig struct {
 	Password string
 	DBName   string `mapstructure:"dbname"`
 	SSLMode  string `mapstructure:"sslmode"`
+}
+
+type CORSConfig struct {
+	AllowOrigins     []string `mapstructure:"allowOrigins"`
+	AllowMethods     []string `mapstructure:"allowMethods"`
+	AllowHeaders     []string `mapstructure:"allowHeaders"`
+	ExposeHeaders    []string `mapstructure:"exposeHeaders"`
+	AllowCredentials bool     `mapstructure:"allowCredentials"`
+	MaxAge           int      `mapstructure:"maxAge"`
 }
 
 func LoadConfig() (*Config, error) {
@@ -92,6 +102,22 @@ func (cfg *Config) Validate() error {
 	}
 	if cfg.DB.SSLMode == "" {
 		return errors.New("db sslmode is required")
+	}
+
+	if cfg.CORS == nil {
+		return errors.New("cors config is required")
+	}
+	if len(cfg.CORS.AllowOrigins) == 0 {
+		return errors.New("at least one CORS allowOrigin is required")
+	}
+	if len(cfg.CORS.AllowMethods) == 0 {
+		return errors.New("at least one CORS allowMethod is required")
+	}
+	if len(cfg.CORS.AllowHeaders) == 0 {
+		return errors.New("at least one CORS allowHeader is required")
+	}
+	if cfg.CORS.MaxAge < 0 {
+		return errors.New("cors maxAge must be non-negative")
 	}
 
 	return nil

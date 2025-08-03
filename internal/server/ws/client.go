@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/RX90/Chat/internal/domain/dto"
@@ -27,6 +28,9 @@ var (
 )
 
 var Upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return r.Header.Get("Origin") == "http://localhost:3000"
+	},
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 }

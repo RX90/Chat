@@ -10,3 +10,20 @@ db:
   username: "postgres"
   dbname: "chat"
   sslmode: "disable"
+
+cors:
+  allowOrigins:
+    - "http://localhost:3000"
+  allowMethods:
+    - "GET"
+    - "POST"
+    - "PUT"
+    - "PATCH"
+    - "DELETE"
+    - "OPTIONS"
+  allowHeaders:
+    - "Origin"
+    - "Content-Type"
+    - "Authorization"
+  allowCredentials: true
+  maxAge: 43200 # 12 hours in seconds

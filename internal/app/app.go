@@ -38,7 +38,7 @@ func NewApp() (*App, error) {
 	service := service.NewService(repo)
 	handler := handler.NewHandler(service)
 
-	r, err := server.NewRouter(handler)
+	r, err := server.NewRouter(handler, cfg.CORS)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get router: %w", err)
 	}

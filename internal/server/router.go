@@ -1,31 +1,36 @@
 package server
 
 import (
-	"net/http"
+	"time"
 
+	"github.com/RX90/Chat/config"
 	"github.com/RX90/Chat/internal/handler"
 	"github.com/RX90/Chat/internal/middleware"
-	"github.com/RX90/Chat/web"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
-func NewRouter(h *handler.Handler) (*gin.Engine, error) {
+func NewRouter(h *handler.Handler, cfg *config.CORSConfig) (*gin.Engine, error) {
 	router := gin.Default()
 
-	tmpl, err := web.ParseTemplates()
-	if err != nil {
-		return nil, err
-	}
-	router.SetHTMLTemplate(tmpl)
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     cfg.AllowOrigins,
+		AllowMethods:     cfg.AllowMethods,
+		AllowHeaders:     cfg.AllowHeaders,
+		AllowCredentials: cfg.AllowCredentials,
+		MaxAge:           time.Duration(cfg.MaxAge),
+	}))
 
-	fs, err := web.StaticFiles()
-	if err != nil {
-		return nil, err
-	}
-	router.StaticFS("/static", fs)
-
-	router.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "chat.html", nil)
+	router.Use(func(c *gin.Context) {
+		c.Header("Content-Security-Policy",
+				 "default-src 'self'; " +
+				 "script-src 'self'; " +
+				 "style-src 'self'; " +
+				 "img-src 'self'; " +
+				 "connect-src 'self' ws://localhost:8080; " +
+				 "frame-ancestors 'none';",
+		)
+		c.Next()
 	})
 
 	router.GET("/ws", middleware.StrictUserIdentity, h.Chat.ServeWS)
