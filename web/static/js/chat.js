@@ -298,6 +298,10 @@ window.onload = async function () {
     }
   }
 
+  function scrollLogToBottom() {
+    log.scrollTop = log.scrollHeight - log.clientHeight;
+  }
+
   document.getElementById("form").onsubmit = function (e) {
     e.preventDefault();
     if (!conn) return false;
@@ -346,7 +350,12 @@ window.onload = async function () {
       conn = null;
     }
 
-    conn = new WebSocket("ws://localhost:8080/ws?accessToken=" + encodeURIComponent(token));
+    const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsHost = window.location.hostname;
+    const wsPort = "8080"
+    const wsUrl = `${wsProtocol}//${wsHost}:${wsPort}/ws?accessToken=${encodeURIComponent(token)}`;
+    
+    conn = new WebSocket(wsUrl);
 
     conn.onopen = function () {
       conn.send(JSON.stringify({ type: "auth", token }));
@@ -383,6 +392,7 @@ window.onload = async function () {
           appendLog(fallbackDiv);
         }
       }
+      scrollLogToBottom();
     };
   }
 };
