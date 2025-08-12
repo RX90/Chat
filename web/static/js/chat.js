@@ -8,6 +8,7 @@ window.onload = async function () {
   const signinModal = document.getElementById("signin-modal");
   const signinForm = document.getElementById("signin-form");
   const signinError = document.getElementById("signin-error");
+  const toggleQuestion = document.getElementById("toggle-question");
   const toggleLink = document.getElementById("toggle-link");
   const usernameGroup = document.getElementById("username-group");
   const formTitle = document.getElementById("form-title");
@@ -22,7 +23,12 @@ window.onload = async function () {
       ? "Заполните поля, чтобы зарегистрироваться"
       : "Войдите в свой аккаунт, чтобы продолжить";
     submitButton.textContent = isSignUpMode ? "Создать аккаунт" : "Войти";
+
+    toggleQuestion.textContent = isSignUpMode
+      ? "Уже есть аккаунт?"
+      : "Ещё нет аккаунта?";
     toggleLink.textContent = isSignUpMode ? "Войти" : "Создать";
+
     signinError.textContent = "";
     signinForm.reset();
   }
