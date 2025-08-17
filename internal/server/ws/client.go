@@ -22,9 +22,16 @@ const (
 	maxMessageSize = 4096
 )
 
+const (
+	StateUnauthenticated = iota
+	StateAuthenticated
+	StateReadyForMessages
+)
+
 var (
-	newline    = []byte{'\n'}
-	bufferSize = 256
+	authOK        = []byte(`{"type":"auth_ok"}`)
+	newline       = []byte{'\n'}
+	sendBufferCap = 256
 )
 
 var Upgrader = websocket.Upgrader{
@@ -41,6 +48,7 @@ type Client struct {
 	send        chan []byte
 	service     service.ChatService
 	userID      uuid.UUID
+	username    string
 	tokenExpiry time.Time
 }
 
@@ -52,55 +60,18 @@ func NewClient(conn *websocket.Conn, service service.ChatService) {
 		return nil
 	})
 
-	_, authMsg, err := conn.ReadMessage()
-	if err != nil {
-		log.Printf("failed to read auth message: %v", err)
-		conn.Close()
-		return
-	}
-
-	var init map[string]string
-	if err := json.Unmarshal(authMsg, &init); err != nil {
-		log.Printf("invalid auth message format: %v", err)
-		conn.Close()
-		return
-	}
-
-	if init["type"] != "auth" || init["token"] == "" {
-		log.Println("missing auth token")
-		conn.Close()
-		return
-	}
-
-	claims, err := middleware.ParseAccessToken(init["token"])
-	if err != nil {
-		log.Printf("client auth failed: %v", err)
-		conn.Close()
-		return
-	}
-
 	h := getHub()
 
 	c := &Client{
-		hub:         h,
-		conn:        conn,
-		send:        make(chan []byte, bufferSize),
-		service:     service,
-		userID:      uuid.MustParse(claims.Subject),
-		tokenExpiry: time.Unix(claims.ExpiresAt, 0),
+		hub:     h,
+		conn:    conn,
+		send:    make(chan []byte, sendBufferCap),
+		service: service,
 	}
 
 	h.registerClient(c)
 
-	msg := []byte(`{"type":"auth_ok"}`)
-	if err := c.SendMessage(msg); err != nil {
-		log.Printf("send message error: %v", err)
-		conn.Close()
-		return
-	}
-
 	go c.readPump()
-	go c.writePump()
 }
 
 func (c *Client) readPump() {
@@ -108,6 +79,8 @@ func (c *Client) readPump() {
 		c.hub.unregisterClient(c)
 		c.conn.Close()
 	}()
+
+	state := StateUnauthenticated
 
 	for {
 		_, msgBytes, err := c.conn.ReadMessage()
@@ -124,19 +97,36 @@ func (c *Client) readPump() {
 			continue
 		}
 
-		switch incoming.Type {
-		case "auth":
+		switch state {
+		case StateUnauthenticated:
+			if incoming.Type != "auth" {
+				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "auth required"))
+				return
+			}
+
 			claims, err := middleware.ParseAccessToken(incoming.Token)
 			if err != nil {
-				log.Printf("auth failed: %v", err)
 				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "invalid token"))
 				return
 			}
+
 			c.userID = uuid.MustParse(claims.Subject)
+			c.username = claims.Username
 			c.tokenExpiry = time.Unix(claims.ExpiresAt, 0)
-		case "history":
+
+			go c.writePump()
+			c.SendMessage(authOK)
+			c.hub.broadcastOnlineUsers()
+
+			state = StateAuthenticated
+
+		case StateAuthenticated:
+			if incoming.Type != "history" {
+				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "history required"))
+				return
+			}
+
 			if time.Now().After(c.tokenExpiry) {
-				log.Printf("token expired for user %s", c.userID)
 				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "token expired"))
 				return
 			}
@@ -146,20 +136,28 @@ func (c *Client) readPump() {
 				log.Printf("failed to get history: %v", err)
 				continue
 			}
+
 			for _, msg := range history {
 				jsonMsg, err := json.Marshal(msg)
 				if err != nil {
-					log.Printf("marshal error: %v", err)
+					log.Printf("msg marshal error: %v", err)
 					continue
 				}
 				if err := c.SendMessage(jsonMsg); err != nil {
-					log.Printf("send error: %v", err)
+					log.Printf("send message error: %v", err)
 					break
 				}
 			}
-		case "message":
+
+			state = StateReadyForMessages
+
+		case StateReadyForMessages:
+			if incoming.Type != "message" {
+				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "history required"))
+				return
+			}
+
 			if time.Now().After(c.tokenExpiry) {
-				log.Printf("token expired for user %s", c.userID)
 				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "token expired"))
 				return
 			}
@@ -169,15 +167,10 @@ func (c *Client) readPump() {
 				UserID:  c.userID,
 			}
 
-			if err := json.Unmarshal(msgBytes, &msg); err != nil {
-				log.Printf("message unmarshal error: %v", err)
-				continue
-			}
-
 			createdMsg, err := c.service.CreateMessage(&msg)
 			if err != nil {
 				log.Printf("failed to create message: %v", err)
-				break
+				continue
 			}
 
 			jsonMsg, err := json.Marshal(createdMsg)
@@ -187,6 +180,7 @@ func (c *Client) readPump() {
 			}
 
 			c.hub.broadcastMessage(jsonMsg)
+
 		default:
 			log.Printf("unknown message type: %s", incoming.Type)
 		}
@@ -199,17 +193,19 @@ func (c *Client) writePump() {
 		ticker.Stop()
 		c.conn.Close()
 	}()
+
 	for {
 		select {
 		case message, ok := <-c.send:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+
 			if !ok {
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 
 			if time.Now().After(c.tokenExpiry) {
-				log.Printf("token expired during send for user %s", c.userID)
+				log.Printf("token expired during send for user %v", c.userID)
 				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "token expired"))
 				return
 			}
@@ -220,8 +216,7 @@ func (c *Client) writePump() {
 			}
 			w.Write(message)
 
-			n := len(c.send)
-			for range n {
+			for range len(c.send) {
 				w.Write(newline)
 				w.Write(<-c.send)
 			}
@@ -229,6 +224,7 @@ func (c *Client) writePump() {
 			if err := w.Close(); err != nil {
 				return
 			}
+
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {

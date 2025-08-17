@@ -45,6 +45,10 @@ func (s *authService) CreateUser(user *dto.SignUpUser) error {
 	return s.repo.CreateUser(u)
 }
 
+func (s *authService) GetUserByID(userID uuid.UUID) (*entities.User, error) {
+	return s.repo.GetUserByID(userID)
+}
+
 func (s *authService) GetUserByEmail(email string) (*entities.User, error) {
 	return s.repo.GetUserByEmail(email)
 }

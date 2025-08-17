@@ -14,7 +14,10 @@
         <div class="chat-title">Вайб-чат</div>
         <img src="/img/skeleton-dance.gif" alt="Logo" class="chat-logo"/>
       </div>
-      <button id="logout-button" style="display: none">Выйти</button>
+      <div class="topbar-actions">
+        <img id="group-icon" src="/img/group.svg" alt="Users" title="Список пользователей" style="display: none"/>
+        <button id="logout-button" style="display: none">Выйти</button>
+      </div>
     </header>
 
     <div id="log"></div>
@@ -57,6 +60,14 @@
           </div>
         </form>
       </div>
+    </div>
+
+    <div id="online-users-panel" class="hidden">
+      <div class="panel-header">
+        <h3>Онлайн пользователи</h3>
+        <button id="close-panel-button" aria-label="Закрыть панель">✕</button>
+      </div>
+      <ul id="online-users-list"></ul>
     </div>
 
     <script src="/js/chat.js"></script>

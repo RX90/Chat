@@ -62,7 +62,7 @@ func (h *authHandler) SignIn(c *gin.Context) {
 		return
 	}
 
-	accessToken, err := middleware.NewAccessToken(user.ID.String())
+	accessToken, err := middleware.NewAccessToken(user.ID.String(), user.Username)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"err": fmt.Sprintf("failed to create access token: %v", err)})
 		return
@@ -130,7 +130,13 @@ func (h *authHandler) Refresh(c *gin.Context) {
 		return
 	}
 
-	accessToken, err := middleware.NewAccessToken(userID.String())
+	user, err := h.service.GetUserByID(userID)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"err": fmt.Sprintf("failed to get user info: %v", err)})
+		return
+	}
+
+	accessToken, err := middleware.NewAccessToken(userID.String(), user.Username)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"err": fmt.Sprintf("can't create access token: %v", err)})
 		return

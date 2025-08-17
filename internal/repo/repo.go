@@ -14,6 +14,7 @@ type Repo struct {
 
 type AuthRepo interface {
 	CreateUser(user *entities.User) error
+	GetUserByID(userID uuid.UUID) (*entities.User, error)
 	GetUserByEmail(email string) (*entities.User, error)
 	UpsertRefreshToken(token *entities.RefreshToken) error
 	CheckRefreshToken(userID uuid.UUID, refreshToken string) error

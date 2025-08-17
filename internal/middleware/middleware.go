@@ -24,19 +24,27 @@ var (
 	accessTTL  = 15 * time.Minute
 )
 
-func NewAccessToken(userID string) (string, error) {
-	return jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
-		Subject:   userID,
-		Issuer:    issuer,
-		IssuedAt:  time.Now().Unix(),
-		ExpiresAt: time.Now().Add(accessTTL).Unix(),
+type Claims struct {
+	jwt.StandardClaims
+	Username string `json:"username"`
+}
+
+func NewAccessToken(userID, username string) (string, error) {
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
+		jwt.StandardClaims{
+			Subject:   userID,
+			Issuer:    issuer,
+			IssuedAt:  time.Now().Unix(),
+			ExpiresAt: time.Now().Add(accessTTL).Unix(),
+		},
+		username,
 	}).SignedString([]byte(signingKey))
 }
 
-func ParseAccessToken(accessToken string) (*jwt.StandardClaims, error) {
+func ParseAccessToken(accessToken string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(
 		accessToken,
-		&jwt.StandardClaims{},
+		&Claims{},
 		func(t *jwt.Token) (any, error) {
 			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, errors.New("invalid signing method")
@@ -45,9 +53,9 @@ func ParseAccessToken(accessToken string) (*jwt.StandardClaims, error) {
 		},
 	)
 
-	claims, ok := token.Claims.(*jwt.StandardClaims)
+	claims, ok := token.Claims.(*Claims)
 	if !ok {
-		return nil, errors.New("token claims are not of type *jwt.StandardClaims")
+		return nil, errors.New("token claims are not of type *Claims")
 	}
 
 	if err != nil {

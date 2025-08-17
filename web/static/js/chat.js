@@ -1,6 +1,7 @@
 window.onload = async function () {
   let conn;
   let isSignUpMode = false;
+  let isPanelVisible = false;
 
   const msg = document.getElementById("msg");
   const log = document.getElementById("log");
@@ -15,6 +16,10 @@ window.onload = async function () {
   const formSubtitle = document.getElementById("form-subtitle");
   const submitButton = document.getElementById("submit-button");
   const logoutButton = document.getElementById("logout-button");
+  const groupIcon = document.getElementById("group-icon");
+  const onlineUsersPanel = document.getElementById("online-users-panel");
+  const onlineUsersList = document.getElementById("online-users-list");
+  const closePanelButton = document.getElementById("close-panel-button");
 
   function updateFormMode() {
     usernameGroup.style.display = isSignUpMode ? "block" : "none";
@@ -23,12 +28,10 @@ window.onload = async function () {
       ? "Заполните поля, чтобы зарегистрироваться"
       : "Войдите в свой аккаунт, чтобы продолжить";
     submitButton.textContent = isSignUpMode ? "Создать аккаунт" : "Войти";
-
     toggleQuestion.textContent = isSignUpMode
       ? "Уже есть аккаунт?"
       : "Ещё нет аккаунта?";
     toggleLink.textContent = isSignUpMode ? "Войти" : "Создать";
-
     signinError.textContent = "";
     signinForm.reset();
   }
@@ -62,6 +65,7 @@ window.onload = async function () {
       signinModal.style.display = "flex";
       msg.disabled = true;
       logoutButton.style.display = "none";
+      groupIcon.style.display = "none";
       return false;
     }
 
@@ -78,6 +82,7 @@ window.onload = async function () {
         signinModal.style.display = "none";
         msg.disabled = false;
         logoutButton.style.display = "inline-block";
+        groupIcon.style.display = "inline-block";
         return true;
       } else {
         const refreshed = await refreshAccessToken();
@@ -85,12 +90,14 @@ window.onload = async function () {
         signinModal.style.display = "flex";
         msg.disabled = true;
         logoutButton.style.display = "none";
+        groupIcon.style.display = "none";
         return false;
       }
     } catch {
       signinModal.style.display = "flex";
       msg.disabled = true;
       logoutButton.style.display = "none";
+      groupIcon.style.display = "none";
       return false;
     }
   }
@@ -170,6 +177,7 @@ window.onload = async function () {
             localStorage.setItem("accessToken", data.token);
             signinModal.style.display = "none";
             msg.disabled = false;
+            groupIcon.style.display = "inline-block";
             signinForm.reset();
             startWebSocket();
             logoutButton.style.display = "block";
@@ -195,6 +203,7 @@ window.onload = async function () {
           localStorage.setItem("accessToken", data.token);
           signinModal.style.display = "none";
           msg.disabled = false;
+          groupIcon.style.display = "inline-block";
           signinForm.reset();
           startWebSocket();
           logoutButton.style.display = "block";
@@ -224,12 +233,10 @@ window.onload = async function () {
 
       if (!response.ok) {
         const errorResponse = await response.json();
-
         if (response.status === 401 && errorResponse.err === "token has expired") {
           const refreshed = await refreshAccessToken();
           if (refreshed) return logoutButton.click();
         }
-
         throw new Error(errorResponse.message || "Ошибка при выходе");
       }
     } catch {}
@@ -237,11 +244,14 @@ window.onload = async function () {
     localStorage.removeItem("accessToken");
     if (conn) conn.close();
     logoutButton.style.display = "none";
+    groupIcon.style.display = "none";
     isSignUpMode = false;
     updateFormMode();
     signinModal.style.display = "flex";
     msg.disabled = true;
     log.innerHTML = "";
+    onlineUsersPanel.classList.remove("visible");
+    isPanelVisible = false;
   });
 
   function checkScroll() {
@@ -347,29 +357,80 @@ window.onload = async function () {
     }
   }
 
+  function updateOnlineUsers(users) {
+    console.log("Updating online users with data:", users);
+    onlineUsersList.innerHTML = "";
+    if (!Array.isArray(users) || users.length === 0) {
+      console.warn("No valid users array provided:", users);
+      const li = document.createElement("li");
+      li.textContent = "Нет пользователей онлайн";
+      onlineUsersList.appendChild(li);
+      return;
+    }
+    console.log("Populating online users list:", users);
+    users.forEach(user => {
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="status-indicator"></span>${user}`;
+      onlineUsersList.appendChild(li);
+    });
+  }
+
+  function togglePanel() {
+    isPanelVisible = !isPanelVisible;
+    onlineUsersPanel.classList.toggle("visible", isPanelVisible);
+    groupIcon.classList.toggle("active", isPanelVisible);
+    console.log("Panel toggled, visible:", isPanelVisible);
+  }
+
+  groupIcon.addEventListener("click", togglePanel);
+  closePanelButton.addEventListener("click", togglePanel);
+
+  document.addEventListener("click", (e) => {
+    if (
+      isPanelVisible &&
+      !onlineUsersPanel.contains(e.target) &&
+      !groupIcon.contains(e.target) &&
+      !closePanelButton.contains(e.target)
+    ) {
+      togglePanel();
+    }
+  });
+  
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && isPanelVisible) {
+      togglePanel();
+    }
+  });
+
   function startWebSocket() {
     const token = localStorage.getItem("accessToken");
     if (!token) return;
 
     if (conn) {
+      console.log("Closing existing WebSocket connection, readyState:", conn.readyState);
       conn.close();
       conn = null;
     }
 
     const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsHost = window.location.hostname;
-    const wsPort = "8080"
+    const wsPort = "8080";
     const wsUrl = `${wsProtocol}//${wsHost}:${wsPort}/ws?accessToken=${encodeURIComponent(token)}`;
     
     conn = new WebSocket(wsUrl);
 
     conn.onopen = function () {
+      console.log("WebSocket opened");
       conn.send(JSON.stringify({ type: "auth", token }));
       scheduleTokenRefresh();
     };
 
-    conn.onclose = function () {
+    conn.onclose = function (event) {
+      console.log("WebSocket closed, code:", event.code, "reason:", event.reason, "wasClean:", event.wasClean);
       appendLog(document.createElement("div"));
+      onlineUsersPanel.classList.remove("visible");
+      isPanelVisible = false;
+      updateOnlineUsers([]);
     };
 
     conn.onerror = function (evt) {
@@ -377,6 +438,7 @@ window.onload = async function () {
     };
 
     conn.onmessage = function (evt) {
+      console.log("Raw WebSocket data:", evt.data);
       const messages = evt.data.split("\n");
       for (let i = 0; i < messages.length; i++) {
         const rawMessage = messages[i].trim();
@@ -384,14 +446,24 @@ window.onload = async function () {
 
         try {
           const parsed = JSON.parse(rawMessage);
+          console.log("Parsed message:", parsed);
 
           if (parsed.type === "auth_ok") {
+            console.log("Auth successful, requesting history");
             conn.send(JSON.stringify({ type: "history" }));
-            return;
+            continue;
           }
+
+          if (parsed.type === "online_users") {
+            console.log("Received online_users:", parsed.users);
+            updateOnlineUsers(parsed.users || []);
+            continue;
+          }
+
           const messageElement = createMessageElement(parsed);
           appendLog(messageElement);
         } catch (e) {
+          console.error("Failed to parse message:", rawMessage, e);
           const fallbackDiv = document.createElement("div");
           fallbackDiv.className = "message";
           fallbackDiv.textContent = rawMessage;

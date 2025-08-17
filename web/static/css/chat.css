@@ -37,7 +37,9 @@ body {
 }
 
 .chat-title {
-  flex-grow: 1;
+  font-family: 'Minecraft', Arial, sans-serif;
+  font-size: 24px;
+  letter-spacing: 1px;
 }
 
 .chat-logo {
@@ -280,15 +282,15 @@ body {
 }
 
 .input-group.floating label {
+  background: transparent;
+  padding: 0 4px;
   position: absolute;
   top: 12px;
   left: 12px;
   font-size: 14px;
   color: #e0e0e0;
-  background: #262b33;
   pointer-events: none;
   transition: 0.2s ease all;
-  padding: 0 4px;
 }
 
 .input-group.floating input:focus + label,
@@ -297,6 +299,8 @@ body {
   left: 8px;
   font-size: 12px;
   color: #3498db;
+  background: #2c2f36;
+  padding: 0 4px;
 }
 
 #signin-modal button {
@@ -359,6 +363,191 @@ body {
 
 #log::-webkit-scrollbar-thumb:hover {
   background-color: rgba(136, 136, 136, 0.5);
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 950;
+}
+
+#group-icon {
+  width: 32px; 
+  height: 32px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: transform 0.2s, background-color 0.2s;
+  filter: invert(1) brightness(2);
+}
+
+#group-icon:hover {
+  transform: scale(1.2);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+#group-icon.active {
+  background-color: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+#online-users-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 280px;
+  height: 100vh;
+  background: linear-gradient(180deg, #2f3136 0%, #23262a 100%);
+  color: #dcddde;
+  padding: 20px;
+  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.4); 
+  z-index: 1000;
+  transform: translateX(100%);
+  transition: transform 0.3s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Arial', sans-serif;
+  user-select: none;
+}
+
+#online-users-panel::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+  pointer-events: none;
+}
+
+#online-users-panel.visible::before {
+  opacity: 1;
+}
+
+#online-users-panel.visible {
+  transform: translateX(0);
+}
+
+#online-users-panel .panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #3f4147;
+}
+
+#online-users-panel h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+}
+
+#close-panel-button {
+  background: none;
+  border: none;
+  color: #dcddde;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+#close-panel-button:hover {
+  background-color: #23262a;
+  color: #ffffff;
+}
+
+#online-users-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex-grow: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #43b581 #2f3136;
+}
+
+#online-users-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+#online-users-list::-webkit-scrollbar-track {
+  background: #2f3136;
+}
+
+#online-users-list::-webkit-scrollbar-thumb {
+  background-color: #43b581;
+  border-radius: 3px;
+}
+
+#online-users-list li {
+  display: flex;
+  align-items: center;
+  padding: 10px 8px;
+  font-size: 16px;
+  color: #dcddde;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  margin-bottom: 4px;
+  user-select: none; 
+}
+
+#online-users-list li:hover {
+  background-color: #36393f;
+}
+
+#online-users-list li:last-child {
+  margin-bottom: 0;
+}
+
+#online-users-list .status-indicator {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  background-color: #43b581; 
+  border-radius: 50%;
+  margin-right: 12px;
+  box-shadow: 0 0 6px rgba(67, 181, 129, 0.5);
+  animation: pulse 2s infinite ease-in-out;
+}
+
+#online-users-list .user-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  margin-right: 10px;
+  background-color: #444b56;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 6px rgba(67, 181, 129, 0.5);
+  }
+  50% {
+    transform: scale(1.2);
+    box-shadow: 0 0 10px rgba(67, 181, 129, 0.8);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 6px rgba(67, 181, 129, 0.5);
+  }
+}
+
+@font-face {
+  font-family: 'Minecraft';
+  src: url('/font/Minecraft_1.1.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
 }
 
 @keyframes fadeIn {

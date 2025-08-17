@@ -14,3 +14,8 @@ type OutgoingMessage struct {
 	CreatedAt time.Time `json:"createdAt"`
 	Username  string    `json:"username"`
 }
+
+type OnlineUsersMessage struct {
+    Type  string   `json:"type"`
+    Users []string `json:"users"`
+}

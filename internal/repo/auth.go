@@ -22,6 +22,14 @@ func (r *authRepo) CreateUser(user *entities.User) error {
 	return r.db.Create(user).Error
 }
 
+func (r *authRepo) GetUserByID(userID uuid.UUID) (*entities.User, error) {
+	var user entities.User
+	if err := r.db.Where("id = ?", userID).First(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
 func (r *authRepo) GetUserByEmail(email string) (*entities.User, error) {
 	var user entities.User
 	if err := r.db.Where("email = ?", email).First(&user).Error; err != nil {

@@ -14,6 +14,7 @@ type Service struct {
 
 type AuthService interface {
 	CreateUser(user *dto.SignUpUser) error
+	GetUserByID(userID uuid.UUID) (*entities.User, error)
 	GetUserByEmail(email string) (*entities.User, error)
 	NewRefreshToken(userID uuid.UUID) (*entities.RefreshToken, error)
 	CheckRefreshToken(userID uuid.UUID, refreshToken string) error
