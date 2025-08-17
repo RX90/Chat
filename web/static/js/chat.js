@@ -1,8 +1,4 @@
 window.onload = async function () {
-  let conn;
-  let isSignUpMode = false;
-  let isPanelVisible = false;
-
   const msg = document.getElementById("msg");
   const log = document.getElementById("log");
   const scrollButton = document.getElementById("scrollToBottom");
@@ -20,6 +16,11 @@ window.onload = async function () {
   const onlineUsersPanel = document.getElementById("online-users-panel");
   const onlineUsersList = document.getElementById("online-users-list");
   const closePanelButton = document.getElementById("close-panel-button");
+
+  let conn;
+  let isSignUpMode = false;
+  let isPanelVisible = false;
+  let lastRenderedDay = null;
 
   function updateFormMode() {
     usernameGroup.style.display = isSignUpMode ? "block" : "none";
@@ -267,9 +268,32 @@ window.onload = async function () {
   scrollButton.addEventListener("click", scrollToBottom);
   log.addEventListener("scroll", checkScroll);
 
+  function startOfDay(d) {
+    const x = new Date(d);
+    x.setHours(0,0,0,0);
+    return x;
+  }
+
+  function createDaySeparator(createdAt) {
+    const date = new Date(createdAt);
+    const options = { day: "numeric", month: "long" };
+    const formatted = date.toLocaleDateString("en-US", options);
+
+    const div = document.createElement("div");
+    div.className = "day-separator";
+    div.textContent = formatted;
+    return div;
+  }
+
+  function resetLastRenderedDay() {
+    lastRenderedDay = null;
+  }
+
   function createMessageElement(parsed) {
     const messageDiv = document.createElement("div");
     messageDiv.className = "message";
+
+    if (parsed.id) messageDiv.id = `msg-${parsed.id}`;
 
     const headerDiv = document.createElement("div");
     headerDiv.className = "message-header";
@@ -281,12 +305,10 @@ window.onload = async function () {
     const timeSpan = document.createElement("span");
     timeSpan.className = "timestamp";
 
-    if (parsed.createdAt) {
-      const date = new Date(parsed.createdAt);
-      timeSpan.textContent = date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+    const ts = parsed.createdAt || parsed.created_at;
+    if (ts) {
+      const date = new Date(ts);
+      timeSpan.textContent = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       timeSpan.setAttribute("data-fulltime", date.toLocaleString("ru-RU"));
     } else {
       timeSpan.textContent = "--:--";
@@ -312,6 +334,20 @@ window.onload = async function () {
     if (doScroll) {
       log.scrollTop = log.scrollHeight - log.clientHeight;
     }
+  }
+
+  function appendMessageWithSeparator(parsed) {
+    const createdAt = parsed.createdAt || parsed.created_at || new Date().toISOString();
+    const msgDayIso = startOfDay(new Date(createdAt)).toISOString();
+
+    if (lastRenderedDay !== msgDayIso) {
+      const sep = createDaySeparator(createdAt);
+      appendLog(sep);
+      lastRenderedDay = msgDayIso;
+    }
+
+    const el = createMessageElement(parsed);
+    appendLog(el);
   }
 
   function scrollLogToBottom() {
@@ -450,6 +486,7 @@ window.onload = async function () {
 
           if (parsed.type === "auth_ok") {
             console.log("Auth successful, requesting history");
+            resetLastRenderedDay();
             conn.send(JSON.stringify({ type: "history" }));
             continue;
           }
@@ -460,8 +497,7 @@ window.onload = async function () {
             continue;
           }
 
-          const messageElement = createMessageElement(parsed);
-          appendLog(messageElement);
+          appendMessageWithSeparator(parsed);
         } catch (e) {
           console.error("Failed to parse message:", rawMessage, e);
           const fallbackDiv = document.createElement("div");

@@ -528,6 +528,30 @@ body {
   background-color: #444b56;
 }
 
+.day-separator {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: #888;
+  font-size: 14px;
+  margin: 20px 0;
+}
+
+.day-separator::before,
+.day-separator::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid #ccc;
+}
+
+.day-separator:not(:empty)::before {
+  margin-right: 10px;
+}
+
+.day-separator:not(:empty)::after {
+  margin-left: 10px;
+}
+
 @keyframes pulse {
   0% {
     transform: scale(1);
