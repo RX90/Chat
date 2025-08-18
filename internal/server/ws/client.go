@@ -3,8 +3,10 @@ package ws
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/RX90/Chat/internal/domain/dto"
@@ -25,7 +27,7 @@ const (
 const (
 	StateUnauthenticated = iota
 	StateAuthenticated
-	StateReadyForMessages
+	StateReady
 )
 
 var (
@@ -43,16 +45,16 @@ var Upgrader = websocket.Upgrader{
 }
 
 type Client struct {
-	hub         *Hub
-	conn        *websocket.Conn
-	send        chan []byte
-	service     service.ChatService
-	userID      uuid.UUID
-	username    string
-	tokenExpiry time.Time
+	hub             *Hub
+	conn            *websocket.Conn
+	send            chan []byte
+	service         service.ChatService
+	userID          uuid.UUID
+	username        string
+	tokenExpiryUnix int64
 }
 
-func NewClient(conn *websocket.Conn, service service.ChatService) {
+func ServeClient(conn *websocket.Conn, service service.ChatService) {
 	conn.SetReadLimit(maxMessageSize)
 	conn.SetReadDeadline(time.Now().Add(pongWait))
 	conn.SetPongHandler(func(string) error {
@@ -60,18 +62,18 @@ func NewClient(conn *websocket.Conn, service service.ChatService) {
 		return nil
 	})
 
-	h := getHub()
+	hub := getHub()
 
-	c := &Client{
-		hub:     h,
+	client := &Client{
+		hub:     hub,
 		conn:    conn,
 		send:    make(chan []byte, sendBufferCap),
 		service: service,
 	}
 
-	h.registerClient(c)
+	hub.registerClient(client)
 
-	go c.readPump()
+	go client.readPump()
 }
 
 func (c *Client) readPump() {
@@ -112,10 +114,10 @@ func (c *Client) readPump() {
 
 			c.userID = uuid.MustParse(claims.Subject)
 			c.username = claims.Username
-			c.tokenExpiry = time.Unix(claims.ExpiresAt, 0)
+			c.setExpiry(time.Unix(claims.ExpiresAt, 0))
 
 			go c.writePump()
-			c.SendMessage(authOK)
+			c.sendMessage(authOK)
 			c.hub.broadcastOnlineUsers()
 
 			state = StateAuthenticated
@@ -126,7 +128,7 @@ func (c *Client) readPump() {
 				return
 			}
 
-			if time.Now().After(c.tokenExpiry) {
+			if time.Now().After(c.getExpiry()) {
 				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "token expired"))
 				return
 			}
@@ -143,43 +145,54 @@ func (c *Client) readPump() {
 					log.Printf("msg marshal error: %v", err)
 					continue
 				}
-				if err := c.SendMessage(jsonMsg); err != nil {
+				if err := c.sendMessage(jsonMsg); err != nil {
 					log.Printf("send message error: %v", err)
 					break
 				}
 			}
 
-			state = StateReadyForMessages
+			state = StateReady
 
-		case StateReadyForMessages:
-			if incoming.Type != "message" {
-				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "history required"))
+		case StateReady:
+			switch incoming.Type {
+			case "message":
+				if time.Now().After(c.getExpiry()) {
+					c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "token expired"))
+					return
+				}
+
+				msg := entities.Message{
+					Content: incoming.Content,
+					UserID:  c.userID,
+				}
+
+				createdMsg, err := c.service.CreateMessage(&msg)
+				if err != nil {
+					log.Printf("failed to create message: %v", err)
+					continue
+				}
+
+				jsonMsg, err := json.Marshal(createdMsg)
+				if err != nil {
+					log.Printf("marshal error: %v", err)
+					continue
+				}
+
+				c.hub.broadcastMessage(jsonMsg)
+
+			case "auth_refresh":
+				claims, err := middleware.ParseAccessToken(incoming.Token)
+				if err != nil {
+					c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "invalid token: %v"))
+					return
+				}
+
+				c.setExpiry(time.Unix(claims.ExpiresAt, 0))
+
+			default:
+				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, fmt.Sprintf("unknown message type: %s", incoming.Type)))
 				return
 			}
-
-			if time.Now().After(c.tokenExpiry) {
-				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "token expired"))
-				return
-			}
-
-			msg := entities.Message{
-				Content: incoming.Content,
-				UserID:  c.userID,
-			}
-
-			createdMsg, err := c.service.CreateMessage(&msg)
-			if err != nil {
-				log.Printf("failed to create message: %v", err)
-				continue
-			}
-
-			jsonMsg, err := json.Marshal(createdMsg)
-			if err != nil {
-				log.Printf("marshal error: %v", err)
-				continue
-			}
-
-			c.hub.broadcastMessage(jsonMsg)
 
 		default:
 			log.Printf("unknown message type: %s", incoming.Type)
@@ -204,7 +217,7 @@ func (c *Client) writePump() {
 				return
 			}
 
-			if time.Now().After(c.tokenExpiry) {
+			if time.Now().After(c.getExpiry()) {
 				log.Printf("token expired during send for user %v", c.userID)
 				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "token expired"))
 				return
@@ -234,11 +247,20 @@ func (c *Client) writePump() {
 	}
 }
 
-func (c *Client) SendMessage(msg []byte) error {
+func (c *Client) sendMessage(msg []byte) error {
 	select {
 	case c.send <- msg:
 		return nil
 	default:
 		return errors.New("send buffer full")
 	}
+}
+
+func (c *Client) setExpiry(t time.Time) {
+	atomic.StoreInt64(&c.tokenExpiryUnix, t.Unix())
+}
+
+func (c *Client) getExpiry() time.Time {
+	sec := atomic.LoadInt64(&c.tokenExpiryUnix)
+	return time.Unix(sec, 0)
 }

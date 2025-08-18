@@ -384,7 +384,7 @@ window.onload = async function () {
         const refreshed = await refreshAccessToken();
         if (refreshed) {
           const newToken = localStorage.getItem("accessToken");
-          conn.send(JSON.stringify({ type: "auth", token: newToken }));
+          conn.send(JSON.stringify({ type: "auth_refresh", token: newToken }));
           scheduleTokenRefresh();
         } else {
           conn.close();

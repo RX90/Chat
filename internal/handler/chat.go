@@ -24,5 +24,5 @@ func (h *chatHandler) ServeWS(c *gin.Context) {
 		return
 	}
 	
-	ws.NewClient(conn, h.service)
+	ws.ServeClient(conn, h.service)
 }
