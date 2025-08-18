@@ -1,15 +1,9 @@
-html {
+html, body {
   margin: 0;
   padding: 0;
   height: 100%;
-  overflow: hidden;
   font-family: Arial, sans-serif;
-}
-
-body {
-  margin: 0;
-  padding: 0;
-  height: 100vh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   background: #2c2f36;
@@ -96,19 +90,27 @@ body {
   color: #555;
 }
 
-.sender {
-  font-weight: bold;
+.message-content {
   color: #ffffff;
+  line-height: 1.4;
+  padding-bottom: 8px;
+  margin-right: 60px;
+  word-break: break-word;
+}
+
+.sender, .username {
+  font-weight: bold;
   display: block;
   margin-bottom: 5px;
 }
 
+.sender {
+  color: #ffffff;
+}
+
 .username {
-  font-weight: bold;
   color: #3498db;
   font-size: 0.95em;
-  display: block;
-  margin-bottom: 5px;
 }
 
 .timestamp {
@@ -142,12 +144,69 @@ body {
   opacity: 1;
 }
 
-.message-content {
-  color: #ffffff;
-  line-height: 1.4;
-  padding-bottom: 8px;
-  margin-right: 60px;
-  word-break: break-word;
+.options-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 16px;
+  height: 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: none;
+}
+
+.options-btn img {
+  width: 100%;
+  height: 100%;
+  filter: brightness(0) invert(1);
+}
+
+.message.own:hover .options-btn {
+  display: block;
+}
+
+.options-menu {
+  position: absolute;
+  top: 28px;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  background: #2c2f36;
+  border-radius: 6px;
+  padding: 4px 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  z-index: 10;
+}
+
+.option-btn, .options-menu button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font-size: 0.85em;
+  transition: background 0.2s;
+}
+
+.options-menu button {
+  gap: 8px;
+  font-size: 0.9em;
+  padding: 6px 12px;
+}
+
+.options-menu button:hover {
+  background: #40444b;
+}
+
+.options-menu button img {
+  width: 16px;
+  height: 16px;
+  filter: brightness(0) invert(1);
 }
 
 #form {
@@ -187,6 +246,7 @@ body {
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
+  transition: background 0.3s;
 }
 
 #form input[type="submit"]:hover {
@@ -207,6 +267,7 @@ body {
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   display: none;
   z-index: 100;
+  transition: background 0.3s;
 }
 
 #scrollToBottom:hover {

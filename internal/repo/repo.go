@@ -24,6 +24,7 @@ type AuthRepo interface {
 type ChatRepo interface {
 	CreateMessage(msg *entities.Message) (dto.OutgoingMessage, error)
 	GetMessages() ([]dto.OutgoingMessage, error)
+	DeleteMessage(msgID int, userID uuid.UUID) error
 }
 
 func NewRepo(db *gorm.DB) *Repo {

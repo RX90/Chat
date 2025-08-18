@@ -31,7 +31,6 @@ const (
 )
 
 var (
-	authOK        = []byte(`{"type":"auth_ok"}`)
 	newline       = []byte{'\n'}
 	sendBufferCap = 256
 )
@@ -87,7 +86,11 @@ func (c *Client) readPump() {
 	for {
 		_, msgBytes, err := c.conn.ReadMessage()
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway, websocket.CloseNoStatusReceived, websocket.CloseAbnormalClosure) {
+			if websocket.IsUnexpectedCloseError(err,
+				websocket.CloseNormalClosure,
+				websocket.CloseGoingAway,
+				websocket.CloseNoStatusReceived,
+				websocket.CloseAbnormalClosure) {
 				log.Printf("ws: unexpected close: %v", err)
 			}
 			break
@@ -99,16 +102,18 @@ func (c *Client) readPump() {
 			continue
 		}
 
+		log.Printf("WS incoming: %v", incoming.Type)
+
 		switch state {
 		case StateUnauthenticated:
 			if incoming.Type != "auth" {
-				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "auth required"))
+				c.closeWithPolicy("auth required")
 				return
 			}
 
 			claims, err := middleware.ParseAccessToken(incoming.Token)
 			if err != nil {
-				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "invalid token"))
+				c.closeWithPolicy("invalid token")
 				return
 			}
 
@@ -117,19 +122,22 @@ func (c *Client) readPump() {
 			c.setExpiry(time.Unix(claims.ExpiresAt, 0))
 
 			go c.writePump()
-			c.sendMessage(authOK)
+
+			authMsg, _ := json.Marshal(dto.AuthOK{Type: "auth_ok"})
+			c.sendMessage(authMsg)
+
 			c.hub.broadcastOnlineUsers()
 
 			state = StateAuthenticated
 
 		case StateAuthenticated:
 			if incoming.Type != "history" {
-				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "history required"))
+				c.closeWithPolicy("history required")
 				return
 			}
 
 			if time.Now().After(c.getExpiry()) {
-				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "token expired"))
+				c.closeWithPolicy("token expired")
 				return
 			}
 
@@ -155,9 +163,17 @@ func (c *Client) readPump() {
 
 		case StateReady:
 			switch incoming.Type {
+			case "auth_refresh":
+				claims, err := middleware.ParseAccessToken(incoming.Token)
+				if err != nil {
+					c.closeWithPolicy("invalid token")
+					return
+				}
+				c.setExpiry(time.Unix(claims.ExpiresAt, 0))
+
 			case "message":
 				if time.Now().After(c.getExpiry()) {
-					c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "token expired"))
+					c.closeWithPolicy("token expired")
 					return
 				}
 
@@ -180,22 +196,39 @@ func (c *Client) readPump() {
 
 				c.hub.broadcastMessage(jsonMsg)
 
-			case "auth_refresh":
-				claims, err := middleware.ParseAccessToken(incoming.Token)
-				if err != nil {
-					c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "invalid token: %v"))
+			case "delete":
+				if time.Now().After(c.getExpiry()) {
+					c.closeWithPolicy("token expired")
 					return
 				}
 
-				c.setExpiry(time.Unix(claims.ExpiresAt, 0))
+				msgID := incoming.MessageID
+
+				if err := c.service.DeleteMessage(msgID, c.userID); err != nil {
+					log.Printf("failed to delete message %v: %v", msgID, err)
+					continue
+				}
+
+				outgoing := dto.DeleteMessage{
+					Type:      "delete",
+					MessageID: msgID,
+				}
+
+				jsonMsg, err := json.Marshal(outgoing)
+				if err != nil {
+					log.Printf("marshal error: %v", err)
+					continue
+				}
+
+				c.hub.broadcastMessage(jsonMsg)
 
 			default:
-				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, fmt.Sprintf("unknown message type: %s", incoming.Type)))
+				c.closeWithPolicy(fmt.Sprintf("unknown message type: %s", incoming.Type))
 				return
 			}
 
 		default:
-			log.Printf("unknown message type: %s", incoming.Type)
+			log.Printf("unknown state: %s", incoming.Type)
 		}
 	}
 }
@@ -219,7 +252,7 @@ func (c *Client) writePump() {
 
 			if time.Now().After(c.getExpiry()) {
 				log.Printf("token expired during send for user %v", c.userID)
-				c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "token expired"))
+				c.closeWithPolicy("token expired")
 				return
 			}
 
@@ -263,4 +296,11 @@ func (c *Client) setExpiry(t time.Time) {
 func (c *Client) getExpiry() time.Time {
 	sec := atomic.LoadInt64(&c.tokenExpiryUnix)
 	return time.Unix(sec, 0)
+}
+
+func (c *Client) closeWithPolicy(reason string) {
+	c.conn.WriteMessage(
+		websocket.CloseMessage,
+		websocket.FormatCloseMessage(websocket.ClosePolicyViolation, reason),
+	)
 }

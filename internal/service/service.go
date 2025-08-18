@@ -24,6 +24,7 @@ type AuthService interface {
 type ChatService interface {
 	CreateMessage(msg *entities.Message) (dto.OutgoingMessage, error)
 	GetMessages() ([]dto.OutgoingMessage, error)
+	DeleteMessage(msgID int, userID uuid.UUID) error
 }
 
 func NewService(repo *repo.Repo) *Service {

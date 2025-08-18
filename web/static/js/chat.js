@@ -282,6 +282,7 @@ window.onload = async function () {
     const div = document.createElement("div");
     div.className = "day-separator";
     div.textContent = formatted;
+    div.setAttribute("data-day", startOfDay(date).toISOString());
     return div;
   }
 
@@ -289,11 +290,24 @@ window.onload = async function () {
     lastRenderedDay = null;
   }
 
+  function getCurrentUserId() {
+    const token = localStorage.getItem("accessToken");
+    if (!token) return null;
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.sub;
+  }
+
+  const currentUserId = getCurrentUserId();
+
   function createMessageElement(parsed) {
     const messageDiv = document.createElement("div");
     messageDiv.className = "message";
 
     if (parsed.id) messageDiv.id = `msg-${parsed.id}`;
+
+    if (parsed.userId === currentUserId) {
+      messageDiv.classList.add("own");
+    }
 
     const headerDiv = document.createElement("div");
     headerDiv.className = "message-header";
@@ -305,7 +319,7 @@ window.onload = async function () {
     const timeSpan = document.createElement("span");
     timeSpan.className = "timestamp";
 
-    const ts = parsed.createdAt || parsed.created_at;
+    const ts = parsed.createdAt
     if (ts) {
       const date = new Date(ts);
       timeSpan.textContent = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -317,6 +331,58 @@ window.onload = async function () {
 
     headerDiv.appendChild(usernameSpan);
     headerDiv.appendChild(timeSpan);
+
+    if (parsed.userId === currentUserId) {
+      const optionsBtn = document.createElement("button");
+      optionsBtn.className = "options-btn";
+      const img = document.createElement("img");
+      img.src = "/img/options.svg";
+      img.alt = "Опции сообщения";
+      optionsBtn.appendChild(img);
+
+      const optionsMenu = document.createElement("div");
+      optionsMenu.className = "options-menu";
+      optionsMenu.style.display = "none";
+
+      const editBtn = document.createElement("button");
+      const editImg = document.createElement("img");
+      editImg.src = "/img/update.svg";
+      editImg.alt = "Редактировать";
+      editBtn.appendChild(editImg);
+      editBtn.appendChild(document.createTextNode("Редактировать"));
+      editBtn.onclick = () => {
+        console.log("Редактировать сообщение", parsed.id);
+        optionsMenu.style.display = "none";
+      };
+
+      const deleteBtn = document.createElement("button");
+      const deleteImg = document.createElement("img");
+      deleteImg.src = "/img/delete.svg";
+      deleteImg.alt = "Удалить";
+      deleteBtn.appendChild(deleteImg);
+      deleteBtn.appendChild(document.createTextNode("Удалить"));
+      deleteBtn.onclick = () => {
+        if (!conn) return;
+        console.log("Отправка запроса на удаление сообщения", parsed.id);
+        conn.send(JSON.stringify({ type: "delete", messageId: parsed.id }));
+        optionsMenu.style.display = "none";
+      };
+
+      optionsMenu.appendChild(editBtn);
+      optionsMenu.appendChild(deleteBtn);
+
+      optionsBtn.onclick = (e) => {
+        e.stopPropagation();
+        optionsMenu.style.display = optionsMenu.style.display === "none" ? "flex" : "none";
+      };
+
+      document.addEventListener("click", () => {
+        optionsMenu.style.display = "none";
+      });
+
+      headerDiv.appendChild(optionsBtn);
+      headerDiv.appendChild(optionsMenu);
+    }
 
     const contentDiv = document.createElement("div");
     contentDiv.className = "message-content";
@@ -337,7 +403,7 @@ window.onload = async function () {
   }
 
   function appendMessageWithSeparator(parsed) {
-    const createdAt = parsed.createdAt || parsed.created_at || new Date().toISOString();
+    const createdAt = parsed.createdAt || new Date().toISOString();
     const msgDayIso = startOfDay(new Date(createdAt)).toISOString();
 
     if (lastRenderedDay !== msgDayIso) {
@@ -474,8 +540,9 @@ window.onload = async function () {
     };
 
     conn.onmessage = function (evt) {
-      console.log("Raw WebSocket data:", evt.data);
       const messages = evt.data.split("\n");
+      let shouldScrollToBottom = false;
+
       for (let i = 0; i < messages.length; i++) {
         const rawMessage = messages[i].trim();
         if (!rawMessage) continue;
@@ -497,16 +564,83 @@ window.onload = async function () {
             continue;
           }
 
+          if (parsed.type === "delete") {
+            const msgEl = document.getElementById(`msg-${parsed.messageId}`);
+            if (msgEl) {
+              const currentScrollTop = log.scrollTop;
+              const msgHeight = msgEl.offsetHeight;
+              const msgRect = msgEl.getBoundingClientRect();
+              const logRect = log.getBoundingClientRect();
+              const isAboveViewport = msgRect.bottom < logRect.top;
+
+              let prevSibling = msgEl.previousElementSibling;
+
+              msgEl.remove();
+              console.log("Сообщение удалено:", parsed.messageId);
+
+              let prevSeparator = null;
+              let current = prevSibling;
+              msgEl.previousElementSibling
+              while (current) {
+                if (current.classList.contains("day-separator")) {
+                  prevSeparator = current;
+                  break;
+                }
+                current = current.previousElementSibling;
+              }
+
+              if (prevSeparator) {
+                let hasMessagesInGroup = false;
+                let nextElem = prevSeparator.nextElementSibling;
+                while (nextElem && !nextElem.classList.contains("day-separator")) {
+                  if (nextElem.classList.contains("message")) {
+                    hasMessagesInGroup = true;
+                    break;
+                  }
+                  nextElem = nextElem.nextElementSibling;
+                }
+
+                if (!hasMessagesInGroup) {
+                  const sepHeight = prevSeparator.offsetHeight;
+                  prevSeparator.remove();
+                  const lastSep = log.querySelector('.day-separator:last-of-type');
+                  if (lastSep) {
+                    lastRenderedDay = lastSep.getAttribute('data-day');
+                  } else {
+                    lastRenderedDay = null;
+                  }
+                  console.log("Удалён пустой разделитель дня");
+
+                  if (isAboveViewport) {
+                    log.scrollTop = currentScrollTop - msgHeight - sepHeight;
+                  }
+                }
+              }
+
+              if (isAboveViewport) {
+                log.scrollTop = currentScrollTop - msgHeight;
+              } else {
+                log.scrollTop = currentScrollTop;
+              }
+            }
+            continue;
+          }
+
           appendMessageWithSeparator(parsed);
+          shouldScrollToBottom = true;
         } catch (e) {
           console.error("Failed to parse message:", rawMessage, e);
           const fallbackDiv = document.createElement("div");
           fallbackDiv.className = "message";
           fallbackDiv.textContent = rawMessage;
           appendLog(fallbackDiv);
+          shouldScrollToBottom = true;
         }
       }
-      scrollLogToBottom();
+
+      if (shouldScrollToBottom) {
+        scrollLogToBottom();
+      }
     };
   }
 };
