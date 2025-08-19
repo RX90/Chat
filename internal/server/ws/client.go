@@ -196,6 +196,43 @@ func (c *Client) readPump() {
 
 				c.hub.broadcastMessage(jsonMsg)
 
+			case "update":
+				if time.Now().After(c.getExpiry()) {
+					c.closeWithPolicy("token expired")
+					return
+				}
+
+				msgID := incoming.MessageID
+				if msgID == 0 {
+					c.closeWithPolicy("invalid message id")
+					return
+				}
+
+				content := incoming.Content
+				if content == "" {
+					c.closeWithPolicy("empty content")
+					return
+				}
+
+				updatedMsg, err := c.service.UpdateMessage(msgID, c.userID, content)
+				if err != nil {
+					log.Printf("failed to update message %v: %v", msgID, err)
+					continue
+				}
+
+				outgoing := dto.UpdateMessage{
+					Type:    "update",
+					Message: updatedMsg,
+				}
+
+				jsonMsg, err := json.Marshal(outgoing)
+				if err != nil {
+					log.Printf("marshal error: %v", err)
+					continue
+				}
+
+				c.hub.broadcastMessage(jsonMsg)
+
 			case "delete":
 				if time.Now().After(c.getExpiry()) {
 					c.closeWithPolicy("token expired")
@@ -203,6 +240,10 @@ func (c *Client) readPump() {
 				}
 
 				msgID := incoming.MessageID
+				if msgID == 0 {
+					c.closeWithPolicy("invalid message id")
+					return
+				}
 
 				if err := c.service.DeleteMessage(msgID, c.userID); err != nil {
 					log.Printf("failed to delete message %v: %v", msgID, err)

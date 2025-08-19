@@ -15,6 +15,12 @@ type OutgoingMessage struct {
 	UserID    string    `json:"userId"`
 	Username  string    `json:"username"`
 	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+type UpdateMessage struct {
+	Type    string `json:"type"`
+	Message OutgoingMessage
 }
 
 type DeleteMessage struct {

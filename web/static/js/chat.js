@@ -21,6 +21,7 @@ window.onload = async function () {
   let isSignUpMode = false;
   let isPanelVisible = false;
   let lastRenderedDay = null;
+  let editingMessageId = null;
 
   function updateFormMode() {
     usernameGroup.style.display = isSignUpMode ? "block" : "none";
@@ -297,15 +298,13 @@ window.onload = async function () {
     return payload.sub;
   }
 
-  const currentUserId = getCurrentUserId();
-
   function createMessageElement(parsed) {
     const messageDiv = document.createElement("div");
     messageDiv.className = "message";
 
     if (parsed.id) messageDiv.id = `msg-${parsed.id}`;
 
-    if (parsed.userId === currentUserId) {
+    if (parsed.userId === getCurrentUserId()) {
       messageDiv.classList.add("own");
     }
 
@@ -319,11 +318,29 @@ window.onload = async function () {
     const timeSpan = document.createElement("span");
     timeSpan.className = "timestamp";
 
-    const ts = parsed.createdAt
+    const ts = parsed.createdAt;
+    const updatedTs = parsed.updatedAt;
     if (ts) {
       const date = new Date(ts);
-      timeSpan.textContent = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      timeSpan.setAttribute("data-fulltime", date.toLocaleString("ru-RU"));
+      const shortTime = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      timeSpan.textContent = shortTime;
+
+      const isUpdated = updatedTs && new Date(updatedTs) > date;
+      if (isUpdated) {
+        const editedSpan = document.createElement("span");
+        editedSpan.className = "edited";
+        editedSpan.textContent = " (изменено)";
+        timeSpan.appendChild(editedSpan);
+      }
+
+      const fullCreated = date.toLocaleString("ru-RU").replace(",", "");
+      let dataFulltime = fullCreated;
+      if (isUpdated) {
+        const updateDate = new Date(updatedTs);
+        const fullUpdated = updateDate.toLocaleString("ru-RU").replace(",", "");
+        dataFulltime += ". 🖊️ " + fullUpdated;
+      }
+      timeSpan.setAttribute("data-fulltime", dataFulltime);
     } else {
       timeSpan.textContent = "--:--";
       timeSpan.setAttribute("data-fulltime", "Неизвестное время");
@@ -332,7 +349,7 @@ window.onload = async function () {
     headerDiv.appendChild(usernameSpan);
     headerDiv.appendChild(timeSpan);
 
-    if (parsed.userId === currentUserId) {
+    if (parsed.userId === getCurrentUserId()) {
       const optionsBtn = document.createElement("button");
       optionsBtn.className = "options-btn";
       const img = document.createElement("img");
@@ -351,8 +368,11 @@ window.onload = async function () {
       editBtn.appendChild(editImg);
       editBtn.appendChild(document.createTextNode("Редактировать"));
       editBtn.onclick = () => {
-        console.log("Редактировать сообщение", parsed.id);
         optionsMenu.style.display = "none";
+        const contentDiv = messageDiv.querySelector('.message-content');
+        msg.value = contentDiv.textContent;
+        editingMessageId = parsed.id;
+        msg.focus();
       };
 
       const deleteBtn = document.createElement("button");
@@ -430,7 +450,12 @@ window.onload = async function () {
       return false;
     }
 
-    conn.send(JSON.stringify({ type: "message", content: text }));
+    if (editingMessageId) {
+      conn.send(JSON.stringify({ type: "update", messageId: editingMessageId, content: text }));
+      editingMessageId = null;
+    } else {
+      conn.send(JSON.stringify({ type: "message", content: text }));
+    }
     msg.value = "";
     return false;
   };
@@ -580,7 +605,6 @@ window.onload = async function () {
 
               let prevSeparator = null;
               let current = prevSibling;
-              msgEl.previousElementSibling
               while (current) {
                 if (current.classList.contains("day-separator")) {
                   prevSeparator = current;
@@ -622,6 +646,38 @@ window.onload = async function () {
               } else {
                 log.scrollTop = currentScrollTop;
               }
+            }
+            continue;
+          }
+
+          if (parsed.type === "update") {
+            const updated = parsed.Message;
+            const msgEl = document.getElementById(`msg-${updated.id}`);
+            if (msgEl) {
+              const contentDiv = msgEl.querySelector('.message-content');
+              contentDiv.textContent = updated.content;
+
+              const timeSpan = msgEl.querySelector('.timestamp');
+              const date = new Date(updated.createdAt);
+              const shortTime = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+              timeSpan.textContent = shortTime;
+
+              const isUpdated = updated.updatedAt && new Date(updated.updatedAt) > date;
+              if (isUpdated) {
+                const editedSpan = document.createElement("span");
+                editedSpan.className = "edited";
+                editedSpan.textContent = " (изменено)";
+                timeSpan.appendChild(editedSpan);
+              }
+
+              const fullCreated = date.toLocaleString("ru-RU").replace(",", "");
+              let dataFulltime = fullCreated;
+              if (isUpdated) {
+                const updateDate = new Date(updated.updatedAt);
+                const fullUpdated = updateDate.toLocaleString("ru-RU").replace(",", "");
+                dataFulltime += ". 🖊️ " + fullUpdated;
+              }
+              timeSpan.setAttribute("data-fulltime", dataFulltime);
             }
             continue;
           }

@@ -1,11 +1,8 @@
 package repo
 
 import (
-	"errors"
-
 	"github.com/RX90/Chat/internal/domain/dto"
 	"github.com/RX90/Chat/internal/domain/entities"
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -17,6 +14,14 @@ func newChatRepo(db *gorm.DB) ChatRepo {
 	return &chatRepo{db: db}
 }
 
+func (r *chatRepo) FindMessageByID(msgID int) (*entities.Message, error) {
+	var msg entities.Message
+	if err := r.db.First(&msg, msgID).Error; err != nil {
+		return nil, err
+	}
+	return &msg, nil
+}
+
 func (r *chatRepo) CreateMessage(msg *entities.Message) (dto.OutgoingMessage, error) {
 	if err := r.db.Create(msg).Error; err != nil {
 		return dto.OutgoingMessage{}, err
@@ -26,7 +31,7 @@ func (r *chatRepo) CreateMessage(msg *entities.Message) (dto.OutgoingMessage, er
 
 	err := r.db.
 		Table("messages").
-		Select("messages.id, messages.content, messages.user_id, users.username, messages.created_at").
+		Select("messages.id, messages.content, messages.user_id, users.username, messages.created_at, messages.updated_at").
 		Joins("left join users on users.id = messages.user_id").
 		Where("messages.id = ?", msg.ID).
 		Scan(&msgOut).Error
@@ -39,7 +44,7 @@ func (r *chatRepo) GetMessages() ([]dto.OutgoingMessage, error) {
 
 	err := r.db.
 		Table("messages").
-		Select("messages.id, messages.content, messages.user_id, users.username, messages.created_at").
+		Select("messages.id, messages.content, messages.user_id, users.username, messages.created_at, messages.updated_at").
 		Joins("left join users on users.id = messages.user_id").
 		Order("messages.created_at ASC").
 		Scan(&msgs).Error
@@ -47,23 +52,26 @@ func (r *chatRepo) GetMessages() ([]dto.OutgoingMessage, error) {
 	return msgs, err
 }
 
-func (r *chatRepo) DeleteMessage(msgID int, userID uuid.UUID) error {
-	var msg entities.Message
-
-	if err := r.db.First(&msg, msgID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("message not found")
-		}
-		return err
+func (r *chatRepo) UpdateMessageContent(msg *entities.Message) (dto.OutgoingMessage, error) {
+	if err := r.db.Save(&msg).Error; err != nil {
+		return dto.OutgoingMessage{}, err
 	}
 
-	if msg.UserID != userID {
-		return errors.New("cannot delete another user's message")
+	var msgOut dto.OutgoingMessage
+
+	err := r.db.
+		Table("messages").
+		Select("messages.id, messages.content, messages.user_id, users.username, messages.created_at, messages.updated_at").
+		Joins("left join users on users.id = messages.user_id").
+		Where("messages.id = ?", msg.ID).
+		Scan(&msgOut).Error
+	if err != nil {
+		return dto.OutgoingMessage{}, err
 	}
 
-	if err := r.db.Delete(&msg).Error; err != nil {
-		return err
-	}
+	return msgOut, nil
+}
 
-	return nil
+func (r *chatRepo) DeleteMessageByID(msgID int) error {
+	return r.db.Delete(&entities.Message{}, msgID).Error
 }
