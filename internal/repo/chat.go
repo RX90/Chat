@@ -16,6 +16,7 @@ func newChatRepo(db *gorm.DB) ChatRepo {
 
 func (r *chatRepo) FindMessageByID(msgID int) (*entities.Message, error) {
 	var msg entities.Message
+
 	if err := r.db.First(&msg, msgID).Error; err != nil {
 		return nil, err
 	}
@@ -35,7 +36,6 @@ func (r *chatRepo) CreateMessage(msg *entities.Message) (dto.OutgoingMessage, er
 		Joins("left join users on users.id = messages.user_id").
 		Where("messages.id = ?", msg.ID).
 		Scan(&msgOut).Error
-
 	return msgOut, err
 }
 
@@ -48,7 +48,6 @@ func (r *chatRepo) GetMessages() ([]dto.OutgoingMessage, error) {
 		Joins("left join users on users.id = messages.user_id").
 		Order("messages.created_at ASC").
 		Scan(&msgs).Error
-
 	return msgs, err
 }
 
@@ -68,7 +67,6 @@ func (r *chatRepo) UpdateMessageContent(msg *entities.Message) (dto.OutgoingMess
 	if err != nil {
 		return dto.OutgoingMessage{}, err
 	}
-
 	return msgOut, nil
 }
 

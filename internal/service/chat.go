@@ -60,6 +60,5 @@ func (s *chatService) DeleteMessage(msgID int, userID uuid.UUID) error {
 	if msg.UserID != userID {
 		return errors.New("cannot delete another user's message")
 	}
-
 	return s.repo.DeleteMessageByID(msgID)
 }

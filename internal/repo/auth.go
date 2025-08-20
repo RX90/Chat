@@ -24,6 +24,7 @@ func (r *authRepo) CreateUser(user *entities.User) error {
 
 func (r *authRepo) GetUserByID(userID uuid.UUID) (*entities.User, error) {
 	var user entities.User
+
 	if err := r.db.Where("id = ?", userID).First(&user).Error; err != nil {
 		return nil, err
 	}
@@ -32,6 +33,7 @@ func (r *authRepo) GetUserByID(userID uuid.UUID) (*entities.User, error) {
 
 func (r *authRepo) GetUserByEmail(email string) (*entities.User, error) {
 	var user entities.User
+
 	if err := r.db.Where("email = ?", email).First(&user).Error; err != nil {
 		return nil, err
 	}
@@ -60,7 +62,6 @@ func (r *authRepo) CheckRefreshToken(userID uuid.UUID, refreshToken string) erro
 	if time.Now().After(token.ExpiresAt) {
 		return errors.New("refresh token has expired")
 	}
-
 	return nil
 }
 

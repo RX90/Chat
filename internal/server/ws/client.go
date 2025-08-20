@@ -35,12 +35,14 @@ var (
 	sendBufferCap = 256
 )
 
+var allowedOrigins = map[string]bool{
+	"http://localhost:3000": true,
+}
+
 var Upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		return r.Header.Get("Origin") == "http://localhost:3000"
+		return allowedOrigins[r.Header.Get("Origin")]
 	},
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
 }
 
 type Client struct {
@@ -137,7 +139,7 @@ func (c *Client) readPump() {
 			}
 
 			if time.Now().After(c.getExpiry()) {
-				c.closeWithPolicy("token expired")
+				c.closeWithPolicy("token has expired")
 				return
 			}
 
@@ -173,7 +175,7 @@ func (c *Client) readPump() {
 
 			case "message":
 				if time.Now().After(c.getExpiry()) {
-					c.closeWithPolicy("token expired")
+					c.closeWithPolicy("token has expired")
 					return
 				}
 
@@ -198,7 +200,7 @@ func (c *Client) readPump() {
 
 			case "update":
 				if time.Now().After(c.getExpiry()) {
-					c.closeWithPolicy("token expired")
+					c.closeWithPolicy("token has expired")
 					return
 				}
 
@@ -235,7 +237,7 @@ func (c *Client) readPump() {
 
 			case "delete":
 				if time.Now().After(c.getExpiry()) {
-					c.closeWithPolicy("token expired")
+					c.closeWithPolicy("token has expired")
 					return
 				}
 
@@ -292,8 +294,7 @@ func (c *Client) writePump() {
 			}
 
 			if time.Now().After(c.getExpiry()) {
-				log.Printf("token expired during send for user %v", c.userID)
-				c.closeWithPolicy("token expired")
+				c.closeWithPolicy("token has expired")
 				return
 			}
 

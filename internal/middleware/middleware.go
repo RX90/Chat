@@ -42,32 +42,36 @@ func NewAccessToken(userID, username string) (string, error) {
 }
 
 func ParseAccessToken(accessToken string) (*Claims, error) {
-	token, err := jwt.ParseWithClaims(
-		accessToken,
-		&Claims{},
-		func(t *jwt.Token) (any, error) {
-			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, errors.New("invalid signing method")
-			}
-			return []byte(signingKey), nil
-		},
-	)
+    token, err := jwt.ParseWithClaims(
+        accessToken,
+        &Claims{},
+        func(t *jwt.Token) (any, error) {
+            if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+                return nil, errors.New("invalid token")
+            }
+            return []byte(signingKey), nil
+        },
+    )
 
-	claims, ok := token.Claims.(*Claims)
-	if !ok {
-		return nil, errors.New("token claims are not of type *Claims")
-	}
+    if token == nil {
+        return nil, errors.New("invalid token")
+    }
 
-	if err != nil {
-		if ve, ok := err.(*jwt.ValidationError); ok {
-			if ve.Errors&jwt.ValidationErrorExpired != 0 {
-				return claims, errors.New("token has expired")
-			}
-		}
-		return nil, err
-	}
+    claims, ok := token.Claims.(*Claims)
+    if !ok {
+        return nil, errors.New("invalid token")
+    }
 
-	return claims, nil
+    if err != nil {
+        if ve, ok := err.(*jwt.ValidationError); ok {
+            if ve.Errors&jwt.ValidationErrorExpired != 0 {
+                return claims, errors.New("token has expired")
+            }
+        }
+        return nil, err
+    }
+
+    return claims, nil
 }
 
 func StrictUserIdentity(c *gin.Context) {

@@ -41,7 +41,6 @@ func (s *authService) CreateUser(user *dto.SignUpUser) error {
 		Password: hashedPassword,
 		Email:    user.Email,
 	}
-
 	return s.repo.CreateUser(u)
 }
 
@@ -76,7 +75,6 @@ func (s *authService) NewRefreshToken(userID uuid.UUID) (*entities.RefreshToken,
 		RefreshToken: tokenString,
 		ExpiresAt:    expiresAt,
 	}
-
 	return refreshToken, s.repo.UpsertRefreshToken(refreshToken)
 }
 
