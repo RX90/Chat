@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	"github.com/RX90/Chat/internal/domain/dto"
 	"github.com/RX90/Chat/internal/domain/entities"
@@ -182,6 +183,12 @@ func (c *Client) readPump() {
 				msg := entities.Message{
 					Content: incoming.Content,
 					UserID:  c.userID,
+				}
+
+				msgLen := utf8.RuneCountInString(incoming.Content)
+				if msgLen == 0 || msgLen > 255 {
+					log.Printf("incorrect message length: %d", msgLen)
+					continue
 				}
 
 				createdMsg, err := c.service.CreateMessage(&msg)

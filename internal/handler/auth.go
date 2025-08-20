@@ -35,6 +35,11 @@ func (h *authHandler) SignUp(c *gin.Context) {
 		return
 	}
 
+	if err := inputValidation(input); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"err": fmt.Sprintf("can't validate input: %v", err)})
+		return
+	}
+
 	if err := h.service.CreateUser(&input); err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"err": fmt.Sprintf("failed to create user: %v", err)})
 		return
