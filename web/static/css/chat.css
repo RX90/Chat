@@ -351,9 +351,9 @@ html, body {
   width: 100%;
   padding: 12px;
   font-size: 15px;
-  border: 1px solid #444b56;
+  border: 1px solid #555;
   border-radius: 6px;
-  background: #262b33;
+  background: #2c2f36;
   box-sizing: border-box;
   outline: none;
   color: #e0e0e0;
@@ -361,6 +361,7 @@ html, body {
 
 .input-group input:focus {
   border-color: #3498db;
+  box-shadow: 0 0 5px #3498db;
 }
 
 .input-group.floating label {

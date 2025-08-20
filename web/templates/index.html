@@ -36,17 +36,17 @@
 
         <form id="signin-form" novalidate>
           <div class="input-group floating">
-            <input type="email" id="email" required placeholder=" " />
+            <input type="email" id="email" name="email" required placeholder=" " autocomplete="off" />
             <label for="email">Email</label>
           </div>
 
           <div class="input-group floating" id="username-group" style="display: none">
-            <input type="text" id="username" required placeholder=" " />
+            <input type="text" id="username" name="username" required placeholder=" " autocomplete="off" />
             <label for="username" id="username-label">Имя пользователя</label>
           </div>
 
           <div class="input-group floating password-group">
-            <input type="password" id="password" required placeholder=" " />
+            <input type="password" id="password" name="password" required placeholder=" " autocomplete="off" />
             <label for="password">Пароль</label>
             <img class="password-toggle" src="/img/eye-hidden.svg" alt="Toggle password visibility" />
           </div>
