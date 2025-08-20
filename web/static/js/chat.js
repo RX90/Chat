@@ -16,6 +16,8 @@ window.onload = async function () {
   const onlineUsersPanel = document.getElementById("online-users-panel");
   const onlineUsersList = document.getElementById("online-users-list");
   const closePanelButton = document.getElementById("close-panel-button");
+  const passwordInput = document.getElementById("password");
+  const toggleIcon = document.querySelector(".password-toggle");
 
   let conn;
   let isSignUpMode = false;
@@ -43,6 +45,12 @@ window.onload = async function () {
   toggleLink.addEventListener("click", () => {
     isSignUpMode = !isSignUpMode;
     updateFormMode();
+  });
+
+  toggleIcon.addEventListener("click", () => {
+    const isHidden = passwordInput.type === "password";
+    passwordInput.type = isHidden ? "text" : "password";
+    toggleIcon.src = isHidden ? "/img/eye-visible.svg" : "/img/eye-hidden.svg";
   });
 
   function validateEmail(email) {
@@ -181,6 +189,8 @@ window.onload = async function () {
             msg.disabled = false;
             groupIcon.style.display = "inline-block";
             signinForm.reset();
+            passwordInput.type = "password";
+            toggleIcon.src = "/img/eye-hidden.svg";
             startWebSocket();
             logoutButton.style.display = "block";
           } else {
@@ -207,6 +217,8 @@ window.onload = async function () {
           msg.disabled = false;
           groupIcon.style.display = "inline-block";
           signinForm.reset();
+          passwordInput.type = "password";
+          toggleIcon.src = "/img/eye-hidden.svg";
           startWebSocket();
           logoutButton.style.display = "block";
         } else if (resp.status === 401) {
@@ -338,7 +350,7 @@ window.onload = async function () {
       if (isUpdated) {
         const updateDate = new Date(updatedTs);
         const fullUpdated = updateDate.toLocaleString("ru-RU").replace(",", "");
-        dataFulltime += ". 🖊️ " + fullUpdated;
+        dataFulltime += ". Изменено: " + fullUpdated;
       }
       timeSpan.setAttribute("data-fulltime", dataFulltime);
     } else {
@@ -675,7 +687,7 @@ window.onload = async function () {
               if (isUpdated) {
                 const updateDate = new Date(updated.updatedAt);
                 const fullUpdated = updateDate.toLocaleString("ru-RU").replace(",", "");
-                dataFulltime += ". 🖊️ " + fullUpdated;
+                dataFulltime += ". Изменено: " + fullUpdated;
               }
               timeSpan.setAttribute("data-fulltime", dataFulltime);
             }

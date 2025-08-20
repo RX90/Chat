@@ -113,6 +113,27 @@ html, body {
   font-size: 0.95em;
 }
 
+.password-group {
+  position: relative;
+}
+
+.password-group .password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+  filter: invert(1);
+}
+
+.password-group .password-toggle:hover {
+  opacity: 1;
+}
+
 .timestamp {
   position: absolute;
   right: 10px;
