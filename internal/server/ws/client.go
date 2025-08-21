@@ -38,6 +38,7 @@ var (
 
 var allowedOrigins = map[string]bool{
 	"http://localhost:3000": true,
+	"http://172.21.224.1:3000": true,
 }
 
 var Upgrader = websocket.Upgrader{
