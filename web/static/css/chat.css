@@ -42,6 +42,44 @@ html, body {
   object-fit: contain;
 }
 
+.auth-button {
+  background: white;
+  border: none; /* Обводка незаметна */
+  color: black;
+  padding: 6px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  transition: background-color 0.3s, color 0.3s;
+  display: flex; /* Для выравнивания иконки и текста внутри */
+  align-items: center;
+}
+
+.auth-button:hover {
+  background-color: #f0f0f0; /* Легкий hover для белого фона */
+  color: black;
+}
+
+.auth-button.primary {
+  background: #1f2328; /* Черный фон, как в topbar для consistency */
+  color: white;
+  border: 1px solid #444b56; /* Слабозаметная серая обводка */
+}
+
+.auth-button.primary:hover {
+  background: #2c2f36; /* Чуть светлее для hover-эффекта */
+  color: white;
+}
+
+.auth-button .button-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  position: relative;
+  top: 2px; /* или 2px, подгони по вкусу */
+}
+
 #logout-button {
   background: transparent;
   border: 1.5px solid white;
@@ -299,7 +337,7 @@ html, body {
   display: block;
 }
 
-#signin-modal {
+#login-modal, #register-modal {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.8);
@@ -310,7 +348,7 @@ html, body {
   animation: fadeIn 0.3s ease;
 }
 
-#signin-modal .modal-content {
+#login-modal .modal-content, #register-modal .modal-content {
   background: #2c2f36;
   padding: 32px;
   border-radius: 12px;
@@ -325,7 +363,7 @@ html, body {
   color: #e0e0e0;
 }
 
-#signin-modal h2 {
+#login-modal h2, #register-modal h2 {
   margin-bottom: 5px;
   font-size: 24px;
   font-weight: 700;
@@ -333,7 +371,7 @@ html, body {
   background: #2c2f36;
 }
 
-#signin-modal .subtitle {
+#login-modal .subtitle, #register-modal .subtitle {
   font-size: 14px;
   color: #e0e0e0;
   background: #2c2f36;
@@ -386,7 +424,7 @@ html, body {
   padding: 0 4px;
 }
 
-#signin-modal button {
+#login-modal button, #register-modal button {
   width: 100%;
   padding: 12px 0;
   background-color: #3498db;
@@ -400,11 +438,11 @@ html, body {
   margin-top: 10px;
 }
 
-#signin-modal button:hover {
+#login-modal button:hover, #register-modal button:hover {
   background-color: #277bb5;
 }
 
-#signin-error {
+#login-error, #register-error {
   color: #e74c3c;
   font-size: 14px;
   min-height: 18px;
@@ -412,21 +450,21 @@ html, body {
   text-align: left;
 }
 
-#toggle-link-container {
+#toggle-to-register-container, #toggle-to-login-container {
   margin-top: 18px;
   font-size: 14px;
   color: #8a8f98;
   user-select: none;
 }
 
-#toggle-link {
+#toggle-to-register, #toggle-to-login {
   color: #3498db;
   font-weight: 500;
   cursor: pointer;
   transition: color 0.3s;
 }
 
-#toggle-link:hover {
+#toggle-to-register:hover, #toggle-to-login:hover {
   color: #277bb5;
 }
 

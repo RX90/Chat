@@ -15,6 +15,11 @@
         <img src="/img/skeleton-dance.gif" alt="Logo" class="chat-logo"/>
       </div>
       <div class="topbar-actions">
+        <button id="register-button" class="auth-button" style="display: none;">
+          <img src="/img/user.svg" alt="Регистрация" class="button-icon">
+          Регистрация
+        </button>
+        <button id="login-button" class="auth-button primary" style="display: none;">Войти</button>
         <img id="group-icon" src="/img/group.svg" alt="Users" title="Список пользователей" style="display: none"/>
         <button id="logout-button" style="display: none">Выйти</button>
       </div>
@@ -29,35 +34,64 @@
 
     <button id="scrollToBottom" title="Scroll to bottom">↓</button>
 
-    <div id="signin-modal">
+    <div id="login-modal">
       <div class="modal-content">
-        <h2 id="form-title">Добро пожаловать</h2>
-        <p class="subtitle" id="form-subtitle">Войдите в свой аккаунт, чтобы продолжить</p>
+        <h2>Добро пожаловать</h2>
+        <p class="subtitle">Войдите в свой аккаунт, чтобы продолжить</p>
 
-        <form id="signin-form" novalidate>
+        <form id="login-form" novalidate>
           <div class="input-group floating">
-            <input type="email" id="email" name="email" required placeholder=" " autocomplete="off" />
-            <label for="email">Email</label>
-          </div>
-
-          <div class="input-group floating" id="username-group" style="display: none">
-            <input type="text" id="username" name="username" required placeholder=" " autocomplete="off" />
-            <label for="username" id="username-label">Имя пользователя</label>
+            <input type="email" id="login-email" name="email" required placeholder=" " autocomplete="username" />
+            <label for="login-email">Email</label>
           </div>
 
           <div class="input-group floating password-group">
-            <input type="password" id="password" name="password" required placeholder=" " autocomplete="off" />
-            <label for="password">Пароль</label>
+            <input type="password" id="login-password" name="password" required placeholder=" " autocomplete="current-password" />
+            <label for="login-password">Пароль</label>
             <img class="password-toggle" src="/img/eye-hidden.svg" alt="Toggle password visibility" />
           </div>
 
-          <div id="signin-error"></div>
+          <div id="login-error"></div>
 
-          <button type="submit" id="submit-button">Войти</button>
+          <button type="submit">Войти</button>
 
-          <div id="toggle-link-container">
-            <span id="toggle-question">Ещё нет аккаунта?</span>
-            <span id="toggle-link">Создать</span>
+          <div id="toggle-to-register-container">
+            <span>Ещё нет аккаунта?</span>
+            <span id="toggle-to-register">Создать</span>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="register-modal">
+      <div class="modal-content">
+        <h2>Создание аккаунта</h2>
+        <p class="subtitle">Заполните поля, чтобы зарегистрироваться</p>
+
+        <form id="register-form" novalidate>
+          <div class="input-group floating">
+            <input type="email" id="register-email" name="email" required placeholder=" " autocomplete="username" />
+            <label for="register-email">Email</label>
+          </div>
+
+          <div class="input-group floating">
+            <input type="text" id="register-username" name="username" required placeholder=" " autocomplete="off" />
+            <label for="register-username">Имя пользователя</label>
+          </div>
+
+          <div class="input-group floating password-group">
+            <input type="password" id="register-password" name="password" required placeholder=" " autocomplete="new-password" />
+            <label for="register-password">Пароль</label>
+            <img class="password-toggle" src="/img/eye-hidden.svg" alt="Toggle password visibility" />
+          </div>
+
+          <div id="register-error"></div>
+
+          <button type="submit">Создать аккаунт</button>
+
+          <div id="toggle-to-login-container">
+            <span>Уже есть аккаунт?</span>
+            <span id="toggle-to-login">Войти</span>
           </div>
         </form>
       </div>

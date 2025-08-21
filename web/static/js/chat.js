@@ -2,55 +2,59 @@ window.onload = async function () {
   const msg = document.getElementById("msg");
   const log = document.getElementById("log");
   const scrollButton = document.getElementById("scrollToBottom");
-  const signinModal = document.getElementById("signin-modal");
-  const signinForm = document.getElementById("signin-form");
-  const signinError = document.getElementById("signin-error");
-  const toggleQuestion = document.getElementById("toggle-question");
-  const toggleLink = document.getElementById("toggle-link");
-  const usernameGroup = document.getElementById("username-group");
-  const formTitle = document.getElementById("form-title");
-  const formSubtitle = document.getElementById("form-subtitle");
-  const submitButton = document.getElementById("submit-button");
+  const loginModal = document.getElementById("login-modal");
+  const loginForm = document.getElementById("login-form");
+  const loginError = document.getElementById("login-error");
+  const loginPassword = document.getElementById("login-password");
+  const loginToggleIcon = loginModal.querySelector(".password-toggle");
   const logoutButton = document.getElementById("logout-button");
   const groupIcon = document.getElementById("group-icon");
   const onlineUsersPanel = document.getElementById("online-users-panel");
   const onlineUsersList = document.getElementById("online-users-list");
   const closePanelButton = document.getElementById("close-panel-button");
-  const passwordInput = document.getElementById("password");
-  const toggleIcon = document.querySelector(".password-toggle");
+  const registerModal = document.getElementById("register-modal");
+  const registerForm = document.getElementById("register-form");
+  const registerError = document.getElementById("register-error");
+  const registerPassword = document.getElementById("register-password");
+  const registerToggleIcon = registerModal.querySelector(".password-toggle");
+  const registerButton = document.getElementById("register-button");
+  const loginButton = document.getElementById("login-button");
+  const toggleToRegister = document.getElementById("toggle-to-register");
+  const toggleToLogin = document.getElementById("toggle-to-login");
 
   let conn;
-  let isSignUpMode = false;
   let isPanelVisible = false;
   let lastRenderedDay = null;
   let editingMessageId = null;
 
-  function updateFormMode() {
-    usernameGroup.style.display = isSignUpMode ? "block" : "none";
-    formTitle.textContent = isSignUpMode ? "Создание аккаунта" : "Добро пожаловать";
-    formSubtitle.textContent = isSignUpMode
-      ? "Заполните поля, чтобы зарегистрироваться"
-      : "Войдите в свой аккаунт, чтобы продолжить";
-    submitButton.textContent = isSignUpMode ? "Создать аккаунт" : "Войти";
-    toggleQuestion.textContent = isSignUpMode
-      ? "Уже есть аккаунт?"
-      : "Ещё нет аккаунта?";
-    toggleLink.textContent = isSignUpMode ? "Войти" : "Создать";
-    signinError.textContent = "";
-    signinForm.reset();
-  }
-
-  updateFormMode();
-
-  toggleLink.addEventListener("click", () => {
-    isSignUpMode = !isSignUpMode;
-    updateFormMode();
+  loginToggleIcon.addEventListener("click", () => {
+    const isHidden = loginPassword.type === "password";
+    loginPassword.type = isHidden ? "text" : "password";
+    loginToggleIcon.src = isHidden ? "/img/eye-visible.svg" : "/img/eye-hidden.svg";
   });
 
-  toggleIcon.addEventListener("click", () => {
-    const isHidden = passwordInput.type === "password";
-    passwordInput.type = isHidden ? "text" : "password";
-    toggleIcon.src = isHidden ? "/img/eye-visible.svg" : "/img/eye-hidden.svg";
+  registerToggleIcon.addEventListener("click", () => {
+    const isHidden = registerPassword.type === "password";
+    registerPassword.type = isHidden ? "text" : "password";
+    registerToggleIcon.src = isHidden ? "/img/eye-visible.svg" : "/img/eye-hidden.svg";
+  });
+
+  toggleToRegister.addEventListener("click", () => {
+    loginModal.style.display = "none";
+    registerModal.style.display = "flex";
+  });
+
+  toggleToLogin.addEventListener("click", () => {
+    registerModal.style.display = "none";
+    loginModal.style.display = "flex";
+  });
+
+  registerButton.addEventListener("click", () => {
+    registerModal.style.display = "flex";
+  });
+
+  loginButton.addEventListener("click", () => {
+    loginModal.style.display = "flex";
   });
 
   function validateEmail(email) {
@@ -73,10 +77,13 @@ window.onload = async function () {
   async function checkToken() {
     const token = localStorage.getItem("accessToken");
     if (!token) {
-      signinModal.style.display = "flex";
+      loginModal.style.display = "none";
+      registerModal.style.display = "none";
       msg.disabled = true;
       logoutButton.style.display = "none";
       groupIcon.style.display = "none";
+      registerButton.style.display = "inline-block";
+      loginButton.style.display = "inline-block";
       return false;
     }
 
@@ -90,25 +97,34 @@ window.onload = async function () {
       });
 
       if (response.ok) {
-        signinModal.style.display = "none";
+        loginModal.style.display = "none";
+        registerModal.style.display = "none";
         msg.disabled = false;
         logoutButton.style.display = "inline-block";
         groupIcon.style.display = "inline-block";
+        registerButton.style.display = "none";
+        loginButton.style.display = "none";
         return true;
       } else {
         const refreshed = await refreshAccessToken();
         if (refreshed) return await checkToken();
-        signinModal.style.display = "flex";
+        loginModal.style.display = "none";
+        registerModal.style.display = "none";
         msg.disabled = true;
         logoutButton.style.display = "none";
         groupIcon.style.display = "none";
+        registerButton.style.display = "inline-block";
+        loginButton.style.display = "inline-block";
         return false;
       }
     } catch {
-      signinModal.style.display = "flex";
+      loginModal.style.display = "none";
+      registerModal.style.display = "none";
       msg.disabled = true;
       logoutButton.style.display = "none";
       groupIcon.style.display = "none";
+      registerButton.style.display = "inline-block";
+      loginButton.style.display = "inline-block";
       return false;
     }
   }
@@ -145,91 +161,111 @@ window.onload = async function () {
 
   await init();
 
-  signinForm.addEventListener("submit", async (e) => {
+  loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
-    signinError.textContent = "";
+    loginError.textContent = "";
 
-    const email = document.getElementById("email").value.trim();
-    const password = document.getElementById("password").value;
-    const username = document.getElementById("username").value.trim();
+    const email = document.getElementById("login-email").value.trim();
+    const password = loginPassword.value;
 
     if (!validateEmail(email)) {
-      signinError.textContent = "Введите корректный email";
+      loginError.textContent = "Введите корректный email";
       return;
     }
 
     if (!validatePassword(password)) {
-      signinError.textContent = "Пароль должен быть от 8 до 32 символов";
+      loginError.textContent = "Пароль должен быть от 8 до 32 символов";
       return;
     }
 
-    if (isSignUpMode && !validateUsername(username)) {
-      signinError.textContent = "Имя пользователя должно быть от 4 до 32 символов";
-      return;
-    }
+    try {
+      const resp = await fetch("/api/auth/sign-in", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (isSignUpMode) {
-      try {
-        const resp = await fetch("/api/auth/sign-up", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, username }),
-        });
-
-        if (resp.ok) {
-          const loginResp = await fetch("/api/auth/sign-in", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password }),
-          });
-
-          if (loginResp.ok) {
-            const data = await loginResp.json();
-            localStorage.setItem("accessToken", data.token);
-            signinModal.style.display = "none";
-            msg.disabled = false;
-            groupIcon.style.display = "inline-block";
-            signinForm.reset();
-            passwordInput.type = "password";
-            toggleIcon.src = "/img/eye-hidden.svg";
-            startWebSocket();
-            logoutButton.style.display = "block";
-          } else {
-            signinError.textContent = "Ошибка входа после регистрации";
-          }
-        } else {
-          signinError.textContent = "Ошибка регистрации. Попробуйте позже";
-        }
-      } catch {
-        signinError.textContent = "Ошибка сети";
+      if (resp.ok) {
+        const data = await resp.json();
+        localStorage.setItem("accessToken", data.token);
+        loginModal.style.display = "none";
+        msg.disabled = false;
+        registerButton.style.display = "none";
+        loginButton.style.display = "none";
+        groupIcon.style.display = "inline-block";
+        logoutButton.style.display = "inline-block";
+        loginForm.reset();
+        loginPassword.type = "password";
+        loginToggleIcon.src = "/img/eye-hidden.svg";
+        startWebSocket();
+      } else if (resp.status === 401) {
+        loginError.textContent = "Неверный email или пароль";
+      } else {
+        loginError.textContent = "Ошибка входа, попробуйте позже";
       }
-    } else {
-      try {
-        const resp = await fetch("/api/auth/sign-in", {
+    } catch {
+      loginError.textContent = "Ошибка сети";
+    }
+  });
+
+  registerForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    registerError.textContent = "";
+
+    const email = document.getElementById("register-email").value.trim();
+    const username = document.getElementById("register-username").value.trim();
+    const password = registerPassword.value;
+
+    if (!validateEmail(email)) {
+      registerError.textContent = "Введите корректный email";
+      return;
+    }
+
+    if (!validateUsername(username)) {
+      registerError.textContent = "Имя пользователя должно быть от 4 до 32 символов";
+      return;
+    }
+
+    if (!validatePassword(password)) {
+      registerError.textContent = "Пароль должен быть от 8 до 32 символов";
+      return;
+    }
+
+    try {
+      const resp = await fetch("/api/auth/sign-up", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, username }),
+      });
+
+      if (resp.ok) {
+        const loginResp = await fetch("/api/auth/sign-in", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password }),
         });
 
-        if (resp.ok) {
-          const data = await resp.json();
+        if (loginResp.ok) {
+          const data = await loginResp.json();
           localStorage.setItem("accessToken", data.token);
-          signinModal.style.display = "none";
+          registerModal.style.display = "none";
           msg.disabled = false;
+          registerButton.style.display = "none";
+          loginButton.style.display = "none";
           groupIcon.style.display = "inline-block";
-          signinForm.reset();
-          passwordInput.type = "password";
-          toggleIcon.src = "/img/eye-hidden.svg";
+          logoutButton.style.display = "inline-block";
+          registerForm.reset();
+          registerPassword.type = "password";
+          registerToggleIcon.src = "/img/eye-hidden.svg";
           startWebSocket();
-          logoutButton.style.display = "block";
-        } else if (resp.status === 401) {
-          signinError.textContent = "Неверный email или пароль";
         } else {
-          signinError.textContent = "Ошибка входа, попробуйте позже";
+          registerError.textContent = "Ошибка входа после регистрации";
         }
-      } catch {
-        signinError.textContent = "Ошибка сети";
+      } else {
+        registerError.textContent = "Ошибка регистрации. Попробуйте позже";
       }
+    } catch {
+      registerError.textContent = "Ошибка сети";
     }
   });
 
@@ -260,9 +296,10 @@ window.onload = async function () {
     if (conn) conn.close();
     logoutButton.style.display = "none";
     groupIcon.style.display = "none";
-    isSignUpMode = false;
-    updateFormMode();
-    signinModal.style.display = "flex";
+    registerButton.style.display = "inline-block";
+    loginButton.style.display = "inline-block";
+    loginModal.style.display = "none";
+    registerModal.style.display = "none";
     msg.disabled = true;
     log.innerHTML = "";
     onlineUsersPanel.classList.remove("visible");
