@@ -433,7 +433,6 @@ window.onload = async function () {
       deleteBtn.appendChild(document.createTextNode("Удалить"));
       deleteBtn.onclick = () => {
         if (!conn) return;
-        console.log("Отправка запроса на удаление сообщения", parsed.id);
         conn.send(JSON.stringify({ type: "delete", messageId: parsed.id }));
         optionsMenu.style.display = "none";
       };
@@ -501,6 +500,13 @@ window.onload = async function () {
     }
 
     if (editingMessageId) {
+      const msgEl = document.getElementById(`msg-${editingMessageId}`);
+      const contentDiv = msgEl.querySelector('.message-content');
+      if (text === contentDiv.textContent) {
+        editingMessageId = null;
+        msg.value = "";
+        return false;
+      }
       conn.send(JSON.stringify({ type: "update", messageId: editingMessageId, content: text }));
       editingMessageId = null;
     } else {
@@ -535,7 +541,6 @@ window.onload = async function () {
   }
 
   function updateOnlineUsers(users) {
-    console.log("Updating online users with data:", users);
     onlineUsersList.innerHTML = "";
     if (!Array.isArray(users) || users.length === 0) {
       console.warn("No valid users array provided:", users);
@@ -544,7 +549,6 @@ window.onload = async function () {
       onlineUsersList.appendChild(li);
       return;
     }
-    console.log("Populating online users list:", users);
     users.forEach(user => {
       const li = document.createElement("li");
       li.innerHTML = `<span class="status-indicator"></span>${user}`;
@@ -556,7 +560,6 @@ window.onload = async function () {
     isPanelVisible = !isPanelVisible;
     onlineUsersPanel.classList.toggle("visible", isPanelVisible);
     groupIcon.classList.toggle("active", isPanelVisible);
-    console.log("Panel toggled, visible:", isPanelVisible);
   }
 
   groupIcon.addEventListener("click", togglePanel);
@@ -624,7 +627,6 @@ window.onload = async function () {
 
         try {
           const parsed = JSON.parse(rawMessage);
-          console.log("Parsed message:", parsed);
 
           if (parsed.type === "auth_ok") {
             console.log("Auth successful, requesting history");
@@ -640,6 +642,7 @@ window.onload = async function () {
           }
 
           if (parsed.type === "delete") {
+            console.log("Received a message deletion:", parsed.messageId);
             const msgEl = document.getElementById(`msg-${parsed.messageId}`);
             if (msgEl) {
               const currentScrollTop = log.scrollTop;
@@ -651,7 +654,6 @@ window.onload = async function () {
               let prevSibling = msgEl.previousElementSibling;
 
               msgEl.remove();
-              console.log("Сообщение удалено:", parsed.messageId);
 
               let prevSeparator = null;
               let current = prevSibling;
@@ -683,7 +685,6 @@ window.onload = async function () {
                   } else {
                     lastRenderedDay = null;
                   }
-                  console.log("Удалён пустой разделитель дня");
 
                   if (isAboveViewport) {
                     log.scrollTop = currentScrollTop - msgHeight - sepHeight;
@@ -701,6 +702,7 @@ window.onload = async function () {
           }
 
           if (parsed.type === "update") {
+            console.log("Received a message update:", parsed.messageId);
             const updated = parsed.Message;
             const msgEl = document.getElementById(`msg-${updated.id}`);
             if (msgEl) {

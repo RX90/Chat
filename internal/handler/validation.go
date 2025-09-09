@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"regexp"
+	"unicode/utf8"
 
 	"github.com/RX90/Chat/internal/domain/dto"
 )
@@ -14,11 +15,11 @@ func ValidateEmail(email string) bool {
 }
 
 func ValidateUsername(username string) bool {
-	return len(username) >= 4 && len(username) <= 32
+	return utf8.RuneCountInString(username) >= 4 && utf8.RuneCountInString(username) <= 32
 }
 
 func ValidatePassword(password string) bool {
-	return len(password) >= 8 && len(password) <= 32
+	return utf8.RuneCountInString(password) >= 8 && utf8.RuneCountInString(password) <= 32
 }
 
 func inputValidation(input dto.SignUpUser) error {

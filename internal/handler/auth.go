@@ -123,8 +123,8 @@ func (h *authHandler) Refresh(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"err": fmt.Sprintf("failed to get userID: %v", err)})
 		return
 	}
-
-	refreshToken, err := c.Cookie("refreshToken")
+	
+	refreshToken, err := c.Cookie(cookieName)
 	if err != nil || refreshToken == "" {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"err": "refresh token is missing"})
 		return

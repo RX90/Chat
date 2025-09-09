@@ -1,6 +1,6 @@
 # Chat Application
 
-This is a simple chat application with backend (Go) and frontend (Vite + React) with WebSocket connection.
+This is a Websocket chat application with backend (Go) and frontend (Vite + React).
 
 ---
 

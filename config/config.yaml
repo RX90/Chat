@@ -13,7 +13,7 @@ db:
 
 cors:
   allowOrigins:
-    - "*"
+    - "http://localhost:3000"
   allowMethods:
     - "GET"
     - "POST"
@@ -26,4 +26,4 @@ cors:
     - "Content-Type"
     - "Authorization"
   allowCredentials: true
-  maxAge: 43200 # 12 hours in seconds`
+  maxAge: 43200 # 12 hours in seconds

@@ -36,9 +36,14 @@ var (
 	sendBufferCap = 256
 )
 
+var allowedOrigins = map[string]bool{
+	"http://localhost:3000": true,
+}
+
 var Upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		return true
+		origin := r.Header.Get("Origin")
+		return allowedOrigins[origin]
 	},
 }
 
