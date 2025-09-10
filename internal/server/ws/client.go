@@ -187,7 +187,7 @@ func (c *Client) readPump() {
 				}
 
 				msgLen := utf8.RuneCountInString(incoming.Content)
-				if msgLen == 0 || msgLen > 255 {
+				if msgLen == 0 || msgLen > 1024 {
 					log.Printf("incorrect message length: %d", msgLen)
 					continue
 				}

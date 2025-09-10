@@ -1,6 +1,7 @@
 window.onload = async function () {
   const msg = document.getElementById("msg");
   const log = document.getElementById("log");
+  const form = document.getElementById("form");
   const scrollButton = document.getElementById("scrollToBottom");
   const loginModal = document.getElementById("login-modal");
   const loginForm = document.getElementById("login-form");
@@ -21,6 +22,7 @@ window.onload = async function () {
   const loginButton = document.getElementById("login-button");
   const toggleToRegister = document.getElementById("toggle-to-register");
   const toggleToLogin = document.getElementById("toggle-to-login");
+  const isMobile = window.matchMedia("(max-width: 768px)").matches;
 
   let conn;
   let isPanelVisible = false;
@@ -71,7 +73,36 @@ window.onload = async function () {
   }
 
   function validateMessage(message) {
-    return message.length > 0 && message.length <= 255;
+    return message.length > 0 && message.length <= 1024;
+  }
+
+  function updateScrollButtonPosition() {
+    const formHeight = form.offsetHeight;
+    scrollButton.style.bottom = (formHeight + 10) + 'px';
+  }
+
+  function adjustTextareaHeight() {
+    this.style.height = 'auto';
+    const scrollHeight = this.scrollHeight;
+    const maxHeight = 180;
+    const singleLineHeight = 50;
+
+    if (scrollHeight > maxHeight) {
+      this.style.height = maxHeight + 'px';
+      this.style.overflowY = 'auto';
+    } else {
+      this.style.height = scrollHeight + 'px';
+      this.style.overflowY = 'hidden';
+    }
+
+    const isExpanded = scrollHeight > singleLineHeight;
+    if (isExpanded) {
+      form.classList.add('expanded');
+    } else {
+      form.classList.remove('expanded');
+    }
+
+    updateScrollButtonPosition();
   }
 
   async function checkToken() {
@@ -157,6 +188,8 @@ window.onload = async function () {
   async function init() {
     const ok = await checkToken();
     if (ok) startWebSocket();
+    adjustTextareaHeight.call(msg);
+    updateScrollButtonPosition();
   }
 
   await init();
@@ -455,6 +488,7 @@ window.onload = async function () {
 
     const contentDiv = document.createElement("div");
     contentDiv.className = "message-content";
+    contentDiv.style.whiteSpace = "pre-line";
     contentDiv.textContent = parsed.content;
 
     messageDiv.appendChild(headerDiv);
@@ -489,14 +523,13 @@ window.onload = async function () {
     log.scrollTop = log.scrollHeight - log.clientHeight;
   }
 
-  document.getElementById("form").onsubmit = function (e) {
-    e.preventDefault();
-    if (!conn) return false;
+  function sendMessage() {
+    if (!conn) return;
 
     const text = msg.value.trim();
     if (!validateMessage(text)) {
-      alert("Сообщение должно содержать от 1 до 255 символов");
-      return false;
+      alert("Сообщение должно содержать от 1 до 1024 символов");
+      return;
     }
 
     if (editingMessageId) {
@@ -505,7 +538,8 @@ window.onload = async function () {
       if (text === contentDiv.textContent) {
         editingMessageId = null;
         msg.value = "";
-        return false;
+        adjustTextareaHeight.call(msg);
+        return;
       }
       conn.send(JSON.stringify({ type: "update", messageId: editingMessageId, content: text }));
       editingMessageId = null;
@@ -513,8 +547,31 @@ window.onload = async function () {
       conn.send(JSON.stringify({ type: "message", content: text }));
     }
     msg.value = "";
+    adjustTextareaHeight.call(msg);
+  }
+
+  document.getElementById("form").onsubmit = function (e) {
+    e.preventDefault();
+    sendMessage();
     return false;
   };
+
+  msg.addEventListener('keydown', function(e) {
+    if (!isMobile && e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  msg.addEventListener('input', function() {
+    const wasAtBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 1;
+    adjustTextareaHeight.call(this);
+    
+    if (wasAtBottom) {
+      log.scrollTop = log.scrollHeight - log.clientHeight;
+    }
+    checkScroll();
+  });
 
   function scheduleTokenRefresh() {
     const token = localStorage.getItem("accessToken");
@@ -751,4 +808,13 @@ window.onload = async function () {
       }
     };
   }
+
+  window.addEventListener('resize', () => {
+    updateScrollButtonPosition();
+    const wasAtBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 1;
+    if (wasAtBottom) {
+      log.scrollTop = log.scrollHeight - log.clientHeight;
+    }
+    checkScroll();
+  });
 };

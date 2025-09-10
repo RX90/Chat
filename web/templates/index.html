@@ -25,12 +25,13 @@
       </div>
     </header>
 
-    <div id="log"></div>
-
-    <form id="form">
-      <input type="text" id="msg" size="64" autocomplete="off" placeholder="Введите сообщение" />
-      <input type="submit" value="ОТПРАВИТЬ" />
-    </form>
+    <div id="chat-container">
+      <div id="log"></div>
+      <form id="form">
+        <textarea id="msg" rows="1" style="resize: none; overflow: hidden;" autocomplete="off" placeholder="Введите сообщение"></textarea>
+        <input type="submit" value="ОТПРАВИТЬ" />
+      </form>
+    </div>
 
     <button id="scrollToBottom" title="Scroll to bottom">↓</button>
 
