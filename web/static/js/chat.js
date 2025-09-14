@@ -22,7 +22,13 @@ window.onload = async function () {
   const loginButton = document.getElementById("login-button");
   const toggleToRegister = document.getElementById("toggle-to-register");
   const toggleToLogin = document.getElementById("toggle-to-login");
-  const isMobile = window.matchMedia("(max-width: 768px)").matches;
+  const isMobile =
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent
+    ) ||
+    "ontouchstart" in window ||
+    navigator.maxTouchPoints > 0 ||
+    navigator.msMaxTouchPoints > 0;
 
   let conn;
   let isPanelVisible = false;
