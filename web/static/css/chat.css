@@ -830,6 +830,11 @@ html, body {
     font-size: 14px;
   }
 
+  #msg::placeholder {
+    color: #8a8f98;
+    line-height: 22px;
+  }
+
   #form input[type="submit"] {
     padding: 8px 15px;
     font-size: 14px;
@@ -958,6 +963,11 @@ html, body {
   #msg {
     padding: 6px;
     font-size: 13px;
+  }
+
+  #msg::placeholder {
+    color: #8a8f98;
+    line-height: 26px;
   }
 
   #form input[type="submit"] {
