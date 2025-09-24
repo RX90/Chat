@@ -346,7 +346,7 @@ window.onload = async function () {
   });
 
   function checkScroll() {
-    const isAtBottom = log.scrollHeight - log.clientHeight <= log.scrollTop + 1;
+    const isAtBottom = Math.abs(log.scrollHeight - log.clientHeight - log.scrollTop) < 2;
     scrollButton.classList.toggle("show", !isAtBottom);
   }
 
