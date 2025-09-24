@@ -34,6 +34,8 @@ window.onload = async function () {
   let isPanelVisible = false;
   let lastRenderedDay = null;
   let editingMessageId = null;
+  let autoScroll = true;
+  let ignoreScrollEvent = false;
 
   loginToggleIcon.addEventListener("click", () => {
     const isHidden = loginPassword.type === "password";
@@ -345,18 +347,36 @@ window.onload = async function () {
     isPanelVisible = false;
   });
 
+  function isAtBottom() {
+    return log.scrollHeight - log.clientHeight <= log.scrollTop + 1;
+  }
+
   function checkScroll() {
-    const isAtBottom = Math.abs(log.scrollHeight - log.clientHeight - log.scrollTop) < 2;
-    scrollButton.classList.toggle("show", !isAtBottom);
+    if (autoScroll && !isAtBottom()) {
+      scrollToBottom();
+    }
+    scrollButton.classList.toggle("show", !isAtBottom() && !autoScroll && !editingMessageId);
+  }
+
+  function handleLogScroll() {
+    if (ignoreScrollEvent) {
+      ignoreScrollEvent = false;
+      return;
+    }
+    autoScroll = isAtBottom();
+    checkScroll();
   }
 
   function scrollToBottom() {
-    log.scrollTop = log.scrollHeight;
+    ignoreScrollEvent = true;
+    log.scrollTop = log.scrollHeight - log.clientHeight;
+    ignoreScrollEvent = false;
+    autoScroll = true;
     scrollButton.classList.remove("show");
   }
 
   scrollButton.addEventListener("click", scrollToBottom);
-  log.addEventListener("scroll", checkScroll);
+  log.addEventListener("scroll", handleLogScroll);
 
   function startOfDay(d) {
     const x = new Date(d);
@@ -459,9 +479,17 @@ window.onload = async function () {
       editBtn.onclick = () => {
         optionsMenu.style.display = "none";
         const contentDiv = messageDiv.querySelector('.message-content');
+        const wasAutoScroll = autoScroll;
         msg.value = contentDiv.textContent;
-        editingMessageId = parsed.id;
+        adjustTextareaHeight.call(msg);
+        if (wasAutoScroll) {
+          scrollToBottom();
+        }
+        checkScroll();
+        msg.scrollTop = msg.scrollHeight;
         msg.focus();
+        msg.setSelectionRange(msg.value.length, msg.value.length);
+        editingMessageId = parsed.id;
       };
 
       const deleteBtn = document.createElement("button");
@@ -504,10 +532,9 @@ window.onload = async function () {
   }
 
   function appendLog(element) {
-    const doScroll = log.scrollTop > log.scrollHeight - log.clientHeight - 1;
     log.appendChild(element);
-    if (doScroll) {
-      log.scrollTop = log.scrollHeight - log.clientHeight;
+    if (autoScroll) {
+      scrollToBottom();
     }
   }
 
@@ -523,10 +550,6 @@ window.onload = async function () {
 
     const el = createMessageElement(parsed);
     appendLog(el);
-  }
-
-  function scrollLogToBottom() {
-    log.scrollTop = log.scrollHeight - log.clientHeight;
   }
 
   function sendMessage() {
@@ -570,11 +593,9 @@ window.onload = async function () {
   });
 
   msg.addEventListener('input', function() {
-    const wasAtBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 1;
     adjustTextareaHeight.call(this);
-    
-    if (wasAtBottom) {
-      log.scrollTop = log.scrollHeight - log.clientHeight;
+    if (autoScroll) {
+      scrollToBottom();
     }
     checkScroll();
   });
@@ -682,7 +703,6 @@ window.onload = async function () {
 
     conn.onmessage = function (evt) {
       const messages = evt.data.split("\n");
-      let shouldScrollToBottom = false;
 
       for (let i = 0; i < messages.length; i++) {
         const rawMessage = messages[i].trim();
@@ -728,6 +748,8 @@ window.onload = async function () {
                 current = current.previousElementSibling;
               }
 
+              let totalHeightRemoved = msgHeight;
+
               if (prevSeparator) {
                 let hasMessagesInGroup = false;
                 let nextElem = prevSeparator.nextElementSibling;
@@ -741,6 +763,7 @@ window.onload = async function () {
 
                 if (!hasMessagesInGroup) {
                   const sepHeight = prevSeparator.offsetHeight;
+                  totalHeightRemoved += sepHeight;
                   prevSeparator.remove();
                   const lastSep = log.querySelector('.day-separator:last-of-type');
                   if (lastSep) {
@@ -748,18 +771,19 @@ window.onload = async function () {
                   } else {
                     lastRenderedDay = null;
                   }
-
-                  if (isAboveViewport) {
-                    log.scrollTop = currentScrollTop - msgHeight - sepHeight;
-                  }
                 }
               }
 
+              let newScrollTop;
               if (isAboveViewport) {
-                log.scrollTop = currentScrollTop - msgHeight;
+                newScrollTop = currentScrollTop - totalHeightRemoved;
               } else {
-                log.scrollTop = currentScrollTop;
+                newScrollTop = currentScrollTop;
               }
+              ignoreScrollEvent = true;
+              log.scrollTop = newScrollTop;
+              ignoreScrollEvent = false;
+              checkScroll();
             }
             continue;
           }
@@ -793,33 +817,27 @@ window.onload = async function () {
                 dataFulltime += ". Изменено: " + fullUpdated;
               }
               timeSpan.setAttribute("data-fulltime", dataFulltime);
+              checkScroll();
             }
             continue;
           }
 
           appendMessageWithSeparator(parsed);
-          shouldScrollToBottom = true;
         } catch (e) {
           console.error("Failed to parse message:", rawMessage, e);
           const fallbackDiv = document.createElement("div");
           fallbackDiv.className = "message";
           fallbackDiv.textContent = rawMessage;
           appendLog(fallbackDiv);
-          shouldScrollToBottom = true;
         }
-      }
-
-      if (shouldScrollToBottom) {
-        scrollLogToBottom();
       }
     };
   }
 
   window.addEventListener('resize', () => {
     updateScrollButtonPosition();
-    const wasAtBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 1;
-    if (wasAtBottom) {
-      log.scrollTop = log.scrollHeight - log.clientHeight;
+    if (autoScroll) {
+      scrollToBottom();
     }
     checkScroll();
   });
