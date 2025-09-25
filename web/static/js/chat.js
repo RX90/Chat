@@ -36,6 +36,8 @@ window.onload = async function () {
   let editingMessageId = null;
   let autoScroll = true;
   let ignoreScrollEvent = false;
+  let maxRetries = 5
+  let baseDelay = 2000
 
   loginToggleIcon.addEventListener("click", () => {
     const isHidden = loginPassword.type === "password";
@@ -126,46 +128,66 @@ window.onload = async function () {
       return false;
     }
 
-    try {
-      const response = await fetch("/api/auth/verify", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + token,
-        },
-      });
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch("/api/auth/verify", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token,
+          },
+        });
 
-      if (response.ok) {
-        loginModal.style.display = "none";
-        registerModal.style.display = "none";
-        msg.disabled = false;
-        logoutButton.style.display = "inline-block";
-        groupIcon.style.display = "inline-block";
-        registerButton.style.display = "none";
-        loginButton.style.display = "none";
-        return true;
-      } else {
-        const refreshed = await refreshAccessToken();
-        if (refreshed) return await checkToken();
-        loginModal.style.display = "none";
-        registerModal.style.display = "none";
-        msg.disabled = true;
-        logoutButton.style.display = "none";
-        groupIcon.style.display = "none";
-        registerButton.style.display = "inline-block";
-        loginButton.style.display = "inline-block";
-        return false;
+        if (response.ok) {
+          loginModal.style.display = "none";
+          registerModal.style.display = "none";
+          msg.disabled = false;
+          logoutButton.style.display = "inline-block";
+          groupIcon.style.display = "inline-block";
+          registerButton.style.display = "none";
+          loginButton.style.display = "none";
+          return true;
+        } else if (response.status === 401) {
+          const refreshed = await refreshAccessToken();
+          if (refreshed) return await checkToken();
+          localStorage.removeItem("accessToken");
+          loginModal.style.display = "none";
+          registerModal.style.display = "none";
+          msg.disabled = true;
+          logoutButton.style.display = "none";
+          groupIcon.style.display = "none";
+          registerButton.style.display = "inline-block";
+          loginButton.style.display = "inline-block";
+          return false;
+        } else {
+          console.error(`Token verification failed with status ${response.status} on attempt ${attempt}`);
+          if (attempt === maxRetries) {
+            loginModal.style.display = "none";
+            registerModal.style.display = "none";
+            msg.disabled = true;
+            logoutButton.style.display = "none";
+            groupIcon.style.display = "none";
+            registerButton.style.display = "inline-block";
+            loginButton.style.display = "inline-block";
+            return false;
+          }
+        }
+      } catch (error) {
+        console.error(`Attempt ${attempt} failed for token verification:`, error);
+        if (attempt === maxRetries) {
+          loginModal.style.display = "none";
+          registerModal.style.display = "none";
+          msg.disabled = true;
+          logoutButton.style.display = "none";
+          groupIcon.style.display = "none";
+          registerButton.style.display = "inline-block";
+          loginButton.style.display = "inline-block";
+          return false;
+        }
       }
-    } catch {
-      loginModal.style.display = "none";
-      registerModal.style.display = "none";
-      msg.disabled = true;
-      logoutButton.style.display = "none";
-      groupIcon.style.display = "none";
-      registerButton.style.display = "inline-block";
-      loginButton.style.display = "inline-block";
-      return false;
+      await new Promise(resolve => setTimeout(resolve, baseDelay * Math.pow(2, attempt - 1)));
     }
+    return false;
   }
 
   async function refreshAccessToken() {
