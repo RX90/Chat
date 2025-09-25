@@ -1,6 +1,6 @@
 # Chat Application
 
-This is a Websocket chat application with backend (Go) and frontend (Vite + React).
+This is a Websocket chat application with backend (Go), frontend (Vite + HTML/CSS/JS) and database (PostgreSQL). 
 
 ---
 
@@ -8,8 +8,7 @@ This is a Websocket chat application with backend (Go) and frontend (Vite + Reac
 
 - Go (version 1.20+)
 - Node.js (version 16+)
-- Docker and Docker Compose
-- Git
+- Docker
 
 ---
 
@@ -17,24 +16,16 @@ This is a Websocket chat application with backend (Go) and frontend (Vite + Reac
 
 ### 1. Clone the repository
 
-### 2. Run frontend development server
+### 2. Run frontend server
 ```bash
-cd web && npm install & npm run dev
+cd web && npm install && npm run dev
 ```
 
-### 3. Start backend service with Docker Compose
+### 3. Run backend server
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
-
-### Configuration
-Backend configuration is located in config.yaml (e.g. server port, database settings, CORS).
-
-Frontend settings are in web folder.
 
 ### Usage
 Open http://localhost:3000 in your browser.
-
-Register or log in to start chatting.
-
-The backend API runs on port 8080 by default.
+Register to start chatting.
