@@ -20,8 +20,8 @@ import (
 
 const (
 	writeWait      = 10 * time.Second
-	pongWait       = 60 * time.Second
-	pingPeriod     = (pongWait * 9) / 10
+	pingPeriod     = 20 * time.Second
+	pongWait       = 30 * time.Second
 	maxMessageSize = 4096
 )
 
@@ -331,12 +331,15 @@ func (c *Client) writePump() {
 }
 
 func (c *Client) sendMessage(msg []byte) error {
-	select {
-	case c.send <- msg:
-		return nil
-	default:
-		return errors.New("send buffer full")
-	}
+    select {
+    case c.send <- msg:
+        return nil
+    case <-time.After(2 * time.Second):
+        log.Printf("Client %v: send buffer full after timeout", c)
+        c.closeWithPolicy("send buffer full")
+        c.hub.unregisterClient(c)
+        return errors.New("send buffer full")
+    }
 }
 
 func (c *Client) setExpiry(t time.Time) {
