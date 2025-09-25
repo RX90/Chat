@@ -784,6 +784,13 @@ window.onload = async function () {
               log.scrollTop = newScrollTop;
               ignoreScrollEvent = false;
               checkScroll();
+
+              if (parsed.messageId === editingMessageId) {
+                msg.value = "";
+                adjustTextareaHeight.call(msg);
+                editingMessageId = null;
+                checkScroll();
+              }
             }
             continue;
           }
