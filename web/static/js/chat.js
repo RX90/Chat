@@ -377,7 +377,7 @@ window.onload = async function () {
     if (autoScroll && !isAtBottom()) {
       scrollToBottom();
     }
-    scrollButton.classList.toggle("show", !isAtBottom() && !autoScroll && !editingMessageId);
+    scrollButton.classList.toggle("show", !isAtBottom() && !autoScroll && !editingMessageId && !isPanelVisible);
   }
 
   function handleLogScroll() {
@@ -666,6 +666,7 @@ window.onload = async function () {
     isPanelVisible = !isPanelVisible;
     onlineUsersPanel.classList.toggle("visible", isPanelVisible);
     groupIcon.classList.toggle("active", isPanelVisible);
+    checkScroll();
   }
 
   groupIcon.addEventListener("click", togglePanel);
