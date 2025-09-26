@@ -12,11 +12,12 @@ import (
 )
 
 var (
-	cookieName     = "refreshToken"
+	cookieName     = "refresh"
 	cookiePath     = "/"
 	cookieHttpOnly = true
 	cookieSameSite = http.SameSiteLaxMode
 	cookieMaxAge   = -1
+	cookieSecure   = false
 )
 
 type authHandler struct {
@@ -86,6 +87,7 @@ func (h *authHandler) SignIn(c *gin.Context) {
 		Path:     cookiePath,
 		HttpOnly: cookieHttpOnly,
 		SameSite: cookieSameSite,
+		Secure:   cookieSecure,
 	}
 
 	http.SetCookie(c.Writer, cookie)
@@ -123,7 +125,7 @@ func (h *authHandler) Refresh(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"err": fmt.Sprintf("failed to get userID: %v", err)})
 		return
 	}
-	
+
 	refreshToken, err := c.Cookie(cookieName)
 	if err != nil || refreshToken == "" {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"err": "refresh token is missing"})
@@ -160,6 +162,7 @@ func (h *authHandler) Refresh(c *gin.Context) {
 		Path:     cookiePath,
 		HttpOnly: cookieHttpOnly,
 		SameSite: cookieSameSite,
+		Secure:   cookieSecure,
 	}
 
 	http.SetCookie(c.Writer, cookie)

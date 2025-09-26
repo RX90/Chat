@@ -95,7 +95,7 @@ window.onload = async function () {
 
       if (resp.ok) {
         const data = await resp.json();
-        localStorage.setItem("accessToken", data.token);
+        localStorage.setItem("access", data.token);
         loginModal.style.display = "none";
         msg.disabled = false;
         registerButton.style.display = "none";
@@ -155,7 +155,7 @@ window.onload = async function () {
 
         if (loginResp.ok) {
           const data = await loginResp.json();
-          localStorage.setItem("accessToken", data.token);
+          localStorage.setItem("access", data.token);
           registerModal.style.display = "none";
           msg.disabled = false;
           registerButton.style.display = "none";
@@ -178,7 +178,7 @@ window.onload = async function () {
   });
 
   logoutButton.addEventListener("click", async () => {
-    const token = localStorage.getItem("accessToken");
+    const token = localStorage.getItem("access");
     if (!token) return;
 
     try {
@@ -200,7 +200,7 @@ window.onload = async function () {
       }
     } catch {}
 
-    localStorage.removeItem("accessToken");
+    localStorage.removeItem("access");
     if (conn) conn.close();
     logoutButton.style.display = "none";
     groupIcon.style.display = "none";
@@ -313,7 +313,7 @@ window.onload = async function () {
   }
 
   async function checkToken() {
-    const token = localStorage.getItem("accessToken");
+    const token = localStorage.getItem("access");
     if (!token) {
       loginModal.style.display = "none";
       registerModal.style.display = "none";
@@ -347,7 +347,7 @@ window.onload = async function () {
         } else if (response.status === 401) {
           const refreshed = await refreshAccessToken();
           if (refreshed) return await checkToken();
-          localStorage.removeItem("accessToken");
+          localStorage.removeItem("access");
           loginModal.style.display = "none";
           registerModal.style.display = "none";
           msg.disabled = true;
@@ -388,7 +388,7 @@ window.onload = async function () {
   }
 
   async function refreshAccessToken() {
-    const token = localStorage.getItem("accessToken");
+    const token = localStorage.getItem("access");
     if (!token) return false;
 
     try {
@@ -404,10 +404,10 @@ window.onload = async function () {
       if (!response.ok) throw new Error("Refresh failed");
 
       const data = await response.json();
-      localStorage.setItem("accessToken", data.token);
+      localStorage.setItem("access", data.token);
       return true;
     } catch {
-      localStorage.removeItem("accessToken");
+      localStorage.removeItem("access");
       return false;
     }
   }
@@ -472,7 +472,7 @@ window.onload = async function () {
   }
 
   function getCurrentUserId() {
-    const token = localStorage.getItem("accessToken");
+    const token = localStorage.getItem("access");
     if (!token) return null;
     const payload = JSON.parse(atob(token.split('.')[1]));
     return payload.sub;
@@ -651,7 +651,7 @@ window.onload = async function () {
   }
 
   function scheduleTokenRefresh() {
-    const token = localStorage.getItem("accessToken");
+    const token = localStorage.getItem("access");
     if (!token) return;
 
     const payload = JSON.parse(atob(token.split(".")[1]));
@@ -664,7 +664,7 @@ window.onload = async function () {
       setTimeout(async () => {
         const refreshed = await refreshAccessToken();
         if (refreshed) {
-          const newToken = localStorage.getItem("accessToken");
+          const newToken = localStorage.getItem("access");
           conn.send(JSON.stringify({ type: "auth_refresh", token: newToken }));
           scheduleTokenRefresh();
         } else {
@@ -698,7 +698,7 @@ window.onload = async function () {
   }
 
   function startWebSocket() {
-    const token = localStorage.getItem("accessToken");
+    const token = localStorage.getItem("access");
     if (!token) return;
 
     if (conn) {
