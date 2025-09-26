@@ -27,7 +27,7 @@ func NewRouter(h *handler.Handler, cfg *config.CORSConfig) (*gin.Engine, error) 
 				 "script-src 'self'; " +
 				 "style-src 'self'; " +
 				 "img-src 'self'; " +
-				 "connect-src 'self' ws://localhost:8080; " +
+				 "connect-src 'self'; " +
 				 "frame-ancestors 'none';",
 		)
 		c.Next()
