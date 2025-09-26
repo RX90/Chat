@@ -16,14 +16,14 @@ This is a Websocket chat application with backend (Go), frontend (Vite + HTML/CS
 
 ### 1. Clone the repository
 
-### 2. Run frontend server
+### 2. Add .env with POSTGRES_PASSWORD and AUTH_KEY like in .env.example
 
+### 3. Run frontend server
 ```bash
 cd web && npm install && npm run dev
 ```
 
-### 3. Run backend server
-
+### 4. Run backend server
 ```bash
 docker compose up -d
 ```
