@@ -1,3 +1,10 @@
+@font-face {
+  font-family: 'Minecraft';
+  src: url('/font/Minecraft_1.1.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
 html, body {
   margin: 0;
   padding: 0;
@@ -30,13 +37,6 @@ html, body {
   gap: 8px;
 }
 
-#chat-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
 .chat-title {
   font-family: 'Minecraft', Arial, sans-serif;
   font-size: 24px;
@@ -47,6 +47,13 @@ html, body {
   height: 42px;
   width: auto;
   object-fit: contain;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 950;
 }
 
 .auth-button {
@@ -104,6 +111,33 @@ html, body {
   color: #3498db;
 }
 
+#group-icon {
+  width: 32px; 
+  height: 32px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: transform 0.2s, background-color 0.2s;
+  filter: invert(1) brightness(2);
+}
+
+#group-icon:hover {
+  transform: scale(1.2);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+#group-icon.active {
+  background-color: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+#chat-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 #log {
   flex: 1;
   flex-grow: 1;
@@ -111,6 +145,24 @@ html, body {
   padding: 10px;
   background: #2c2f36;
   box-sizing: border-box;
+}
+
+#log::-webkit-scrollbar {
+  width: 8px;
+}
+
+#log::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#log::-webkit-scrollbar-thumb {
+  background-color: rgba(136, 136, 136, 0.25);
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+#log::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(136, 136, 136, 0.5);
 }
 
 .message {
@@ -158,27 +210,6 @@ html, body {
 .username {
   color: #3498db;
   font-size: 0.95em;
-}
-
-.password-group {
-  position: relative;
-}
-
-.password-group .password-toggle {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 28px;
-  height: 28px;
-  cursor: pointer;
-  opacity: 0.8;
-  transition: opacity 0.2s ease;
-  filter: invert(1);
-}
-
-.password-group .password-toggle:hover {
-  opacity: 1;
 }
 
 .timestamp {
@@ -388,7 +419,8 @@ html, body {
   animation: fadeIn 0.3s ease;
 }
 
-#login-modal .modal-content, #register-modal .modal-content {
+#login-modal .modal-content,
+#register-modal .modal-content {
   background: #2c2f36;
   padding: 32px;
   border-radius: 12px;
@@ -403,18 +435,18 @@ html, body {
   color: #e0e0e0;
 }
 
-#login-modal h2, #register-modal h2 {
+#login-modal h2,
+#register-modal h2 {
   margin-bottom: 5px;
   font-size: 24px;
   font-weight: 700;
   color: #e0e0e0;
-  background: #2c2f36;
 }
 
-#login-modal .subtitle, #register-modal .subtitle {
+#login-modal .subtitle,
+#register-modal .subtitle {
   font-size: 14px;
   color: #e0e0e0;
-  background: #2c2f36;
   margin-bottom: 25px;
 }
 
@@ -464,7 +496,29 @@ html, body {
   padding: 0 4px;
 }
 
-#login-modal button, #register-modal button {
+.password-group {
+  position: relative;
+}
+
+.password-group .password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+  filter: invert(1);
+}
+
+.password-group .password-toggle:hover {
+  opacity: 1;
+}
+
+#login-modal button,
+#register-modal button {
   width: 100%;
   padding: 12px 0;
   background-color: #3498db;
@@ -478,11 +532,13 @@ html, body {
   margin-top: 10px;
 }
 
-#login-modal button:hover, #register-modal button:hover {
+#login-modal button:hover,
+#register-modal button:hover {
   background-color: #277bb5;
 }
 
-#login-error, #register-error {
+#login-error,
+#register-error {
   color: #e74c3c;
   font-size: 14px;
   min-height: 18px;
@@ -490,67 +546,25 @@ html, body {
   text-align: left;
 }
 
-#toggle-to-register-container, #toggle-to-login-container {
+#toggle-to-register-container,
+#toggle-to-login-container {
   margin-top: 18px;
   font-size: 14px;
   color: #8a8f98;
   user-select: none;
 }
 
-#toggle-to-register, #toggle-to-login {
+#toggle-to-register,
+#toggle-to-login {
   color: #3498db;
   font-weight: 500;
   cursor: pointer;
   transition: color 0.3s;
 }
 
-#toggle-to-register:hover, #toggle-to-login:hover {
+#toggle-to-register:hover,
+#toggle-to-login:hover {
   color: #277bb5;
-}
-
-#log::-webkit-scrollbar {
-  width: 8px;
-}
-
-#log::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-#log::-webkit-scrollbar-thumb {
-  background-color: rgba(136, 136, 136, 0.25);
-  border-radius: 4px;
-  transition: background-color 0.2s;
-}
-
-#log::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(136, 136, 136, 0.5);
-}
-
-.topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  z-index: 950;
-}
-
-#group-icon {
-  width: 32px; 
-  height: 32px;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 6px;
-  transition: transform 0.2s, background-color 0.2s;
-  filter: invert(1) brightness(2);
-}
-
-#group-icon:hover {
-  transform: scale(1.2);
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-#group-icon.active {
-  background-color: rgba(255, 255, 255, 0.2);
-  transform: scale(1.1);
 }
 
 #online-users-panel {
@@ -729,13 +743,6 @@ html, body {
   }
 }
 
-@font-face {
-  font-family: 'Minecraft';
-  src: url('/font/Minecraft_1.1.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
-
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -847,12 +854,14 @@ html, body {
     height: 35px;
   }
 
-  #login-modal .modal-content, #register-modal .modal-content {
+  #login-modal .modal-content,
+  #register-modal .modal-content {
     padding: 25px;
     max-width: 90%;
   }
 
-  #login-modal h2, #register-modal h2 {
+  #login-modal h2,
+  #register-modal h2 {
     font-size: 22px;
   }
 
@@ -874,7 +883,8 @@ html, body {
     font-size: 11px;
   }
 
-  #login-modal button, #register-modal button {
+  #login-modal button,
+  #register-modal button {
     padding: 10px 0;
     font-size: 15px;
   }
@@ -982,11 +992,13 @@ html, body {
     height: 30px;
   }
 
-  #login-modal .modal-content, #register-modal .modal-content {
+  #login-modal .modal-content,
+  #register-modal .modal-content {
     padding: 20px;
   }
 
-  #login-modal h2, #register-modal h2 {
+  #login-modal h2,
+  #register-modal h2 {
     font-size: 20px;
   }
 

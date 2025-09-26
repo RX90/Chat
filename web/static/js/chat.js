@@ -36,8 +36,8 @@ window.onload = async function () {
   let editingMessageId = null;
   let autoScroll = true;
   let ignoreScrollEvent = false;
-  let maxRetries = 5
-  let baseDelay = 2000
+  let maxRetries = 5;
+  let baseDelay = 2000;
 
   loginToggleIcon.addEventListener("click", () => {
     const isHidden = loginPassword.type === "password";
@@ -67,6 +67,203 @@ window.onload = async function () {
 
   loginButton.addEventListener("click", () => {
     loginModal.style.display = "flex";
+  });
+
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    loginError.textContent = "";
+
+    const email = document.getElementById("login-email").value.trim();
+    const password = loginPassword.value;
+
+    if (!validateEmail(email)) {
+      loginError.textContent = "Введите корректный email";
+      return;
+    }
+
+    if (!validatePassword(password)) {
+      loginError.textContent = "Пароль должен быть от 8 до 32 символов";
+      return;
+    }
+
+    try {
+      const resp = await fetch("/api/auth/sign-in", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (resp.ok) {
+        const data = await resp.json();
+        localStorage.setItem("accessToken", data.token);
+        loginModal.style.display = "none";
+        msg.disabled = false;
+        registerButton.style.display = "none";
+        loginButton.style.display = "none";
+        groupIcon.style.display = "inline-block";
+        logoutButton.style.display = "inline-block";
+        loginForm.reset();
+        loginPassword.type = "password";
+        loginToggleIcon.src = "/img/eye-hidden.svg";
+        startWebSocket();
+      } else if (resp.status === 401) {
+        loginError.textContent = "Неверный email или пароль";
+      } else {
+        loginError.textContent = "Ошибка входа, попробуйте позже";
+      }
+    } catch {
+      loginError.textContent = "Ошибка сети";
+    }
+  });
+
+  registerForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    registerError.textContent = "";
+
+    const email = document.getElementById("register-email").value.trim();
+    const username = document.getElementById("register-username").value.trim();
+    const password = registerPassword.value;
+
+    if (!validateEmail(email)) {
+      registerError.textContent = "Введите корректный email";
+      return;
+    }
+
+    if (!validateUsername(username)) {
+      registerError.textContent = "Имя пользователя должно быть от 4 до 32 символов";
+      return;
+    }
+
+    if (!validatePassword(password)) {
+      registerError.textContent = "Пароль должен быть от 8 до 32 символов";
+      return;
+    }
+
+    try {
+      const resp = await fetch("/api/auth/sign-up", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, username }),
+      });
+
+      if (resp.ok) {
+        const loginResp = await fetch("/api/auth/sign-in", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+
+        if (loginResp.ok) {
+          const data = await loginResp.json();
+          localStorage.setItem("accessToken", data.token);
+          registerModal.style.display = "none";
+          msg.disabled = false;
+          registerButton.style.display = "none";
+          loginButton.style.display = "none";
+          groupIcon.style.display = "inline-block";
+          logoutButton.style.display = "inline-block";
+          registerForm.reset();
+          registerPassword.type = "password";
+          registerToggleIcon.src = "/img/eye-hidden.svg";
+          startWebSocket();
+        } else {
+          registerError.textContent = "Ошибка входа после регистрации";
+        }
+      } else {
+        registerError.textContent = "Ошибка регистрации. Попробуйте позже";
+      }
+    } catch {
+      registerError.textContent = "Ошибка сети";
+    }
+  });
+
+  logoutButton.addEventListener("click", async () => {
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+
+    try {
+      const response = await fetch("/api/auth/sign-out", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token,
+        },
+      });
+
+      if (!response.ok) {
+        const errorResponse = await response.json();
+        if (response.status === 401 && errorResponse.err === "token has expired") {
+          const refreshed = await refreshAccessToken();
+          if (refreshed) return logoutButton.click();
+        }
+        throw new Error(errorResponse.message || "Ошибка при выходе");
+      }
+    } catch {}
+
+    localStorage.removeItem("accessToken");
+    if (conn) conn.close();
+    logoutButton.style.display = "none";
+    groupIcon.style.display = "none";
+    registerButton.style.display = "inline-block";
+    loginButton.style.display = "inline-block";
+    loginModal.style.display = "none";
+    registerModal.style.display = "none";
+    msg.disabled = true;
+    log.innerHTML = "";
+    onlineUsersPanel.classList.remove("visible");
+    isPanelVisible = false;
+  });
+
+  scrollButton.addEventListener("click", scrollToBottom);
+  log.addEventListener("scroll", handleLogScroll);
+
+  document.getElementById("form").onsubmit = function (e) {
+    e.preventDefault();
+    sendMessage();
+    return false;
+  };
+
+  msg.addEventListener('keydown', function(e) {
+    if (!isMobile && e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  msg.addEventListener('input', function() {
+    adjustTextareaHeight.call(this);
+    if (autoScroll) {
+      scrollToBottom();
+    }
+    checkScroll();
+  });
+
+  groupIcon.addEventListener("click", togglePanel);
+  closePanelButton.addEventListener("click", togglePanel);
+
+  document.addEventListener("click", (e) => {
+    if (
+      isPanelVisible &&
+      !onlineUsersPanel.contains(e.target) &&
+      !groupIcon.contains(e.target) &&
+      !closePanelButton.contains(e.target)
+    ) {
+      togglePanel();
+    }
+  });
+  
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && isPanelVisible) {
+      togglePanel();
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    updateScrollButtonPosition();
+    if (autoScroll) {
+      scrollToBottom();
+    }
+    checkScroll();
   });
 
   function validateEmail(email) {
@@ -224,151 +421,6 @@ window.onload = async function () {
 
   await init();
 
-  loginForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    loginError.textContent = "";
-
-    const email = document.getElementById("login-email").value.trim();
-    const password = loginPassword.value;
-
-    if (!validateEmail(email)) {
-      loginError.textContent = "Введите корректный email";
-      return;
-    }
-
-    if (!validatePassword(password)) {
-      loginError.textContent = "Пароль должен быть от 8 до 32 символов";
-      return;
-    }
-
-    try {
-      const resp = await fetch("/api/auth/sign-in", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (resp.ok) {
-        const data = await resp.json();
-        localStorage.setItem("accessToken", data.token);
-        loginModal.style.display = "none";
-        msg.disabled = false;
-        registerButton.style.display = "none";
-        loginButton.style.display = "none";
-        groupIcon.style.display = "inline-block";
-        logoutButton.style.display = "inline-block";
-        loginForm.reset();
-        loginPassword.type = "password";
-        loginToggleIcon.src = "/img/eye-hidden.svg";
-        startWebSocket();
-      } else if (resp.status === 401) {
-        loginError.textContent = "Неверный email или пароль";
-      } else {
-        loginError.textContent = "Ошибка входа, попробуйте позже";
-      }
-    } catch {
-      loginError.textContent = "Ошибка сети";
-    }
-  });
-
-  registerForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    registerError.textContent = "";
-
-    const email = document.getElementById("register-email").value.trim();
-    const username = document.getElementById("register-username").value.trim();
-    const password = registerPassword.value;
-
-    if (!validateEmail(email)) {
-      registerError.textContent = "Введите корректный email";
-      return;
-    }
-
-    if (!validateUsername(username)) {
-      registerError.textContent = "Имя пользователя должно быть от 4 до 32 символов";
-      return;
-    }
-
-    if (!validatePassword(password)) {
-      registerError.textContent = "Пароль должен быть от 8 до 32 символов";
-      return;
-    }
-
-    try {
-      const resp = await fetch("/api/auth/sign-up", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, username }),
-      });
-
-      if (resp.ok) {
-        const loginResp = await fetch("/api/auth/sign-in", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
-
-        if (loginResp.ok) {
-          const data = await loginResp.json();
-          localStorage.setItem("accessToken", data.token);
-          registerModal.style.display = "none";
-          msg.disabled = false;
-          registerButton.style.display = "none";
-          loginButton.style.display = "none";
-          groupIcon.style.display = "inline-block";
-          logoutButton.style.display = "inline-block";
-          registerForm.reset();
-          registerPassword.type = "password";
-          registerToggleIcon.src = "/img/eye-hidden.svg";
-          startWebSocket();
-        } else {
-          registerError.textContent = "Ошибка входа после регистрации";
-        }
-      } else {
-        registerError.textContent = "Ошибка регистрации. Попробуйте позже";
-      }
-    } catch {
-      registerError.textContent = "Ошибка сети";
-    }
-  });
-
-  logoutButton.addEventListener("click", async () => {
-    const token = localStorage.getItem("accessToken");
-    if (!token) return;
-
-    try {
-      const response = await fetch("/api/auth/sign-out", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + token,
-        },
-      });
-
-      if (!response.ok) {
-        const errorResponse = await response.json();
-        if (response.status === 401 && errorResponse.err === "token has expired") {
-          const refreshed = await refreshAccessToken();
-          if (refreshed) return logoutButton.click();
-        }
-        throw new Error(errorResponse.message || "Ошибка при выходе");
-      }
-    } catch {}
-
-    localStorage.removeItem("accessToken");
-    if (conn) conn.close();
-    logoutButton.style.display = "none";
-    groupIcon.style.display = "none";
-    registerButton.style.display = "inline-block";
-    loginButton.style.display = "inline-block";
-    loginModal.style.display = "none";
-    registerModal.style.display = "none";
-    msg.disabled = true;
-    log.innerHTML = "";
-    onlineUsersPanel.classList.remove("visible");
-    isPanelVisible = false;
-  });
-
   function isAtBottom() {
     return log.scrollHeight - log.clientHeight <= log.scrollTop + 1;
   }
@@ -396,9 +448,6 @@ window.onload = async function () {
     autoScroll = true;
     scrollButton.classList.remove("show");
   }
-
-  scrollButton.addEventListener("click", scrollToBottom);
-  log.addEventListener("scroll", handleLogScroll);
 
   function startOfDay(d) {
     const x = new Date(d);
@@ -601,27 +650,6 @@ window.onload = async function () {
     adjustTextareaHeight.call(msg);
   }
 
-  document.getElementById("form").onsubmit = function (e) {
-    e.preventDefault();
-    sendMessage();
-    return false;
-  };
-
-  msg.addEventListener('keydown', function(e) {
-    if (!isMobile && e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  });
-
-  msg.addEventListener('input', function() {
-    adjustTextareaHeight.call(this);
-    if (autoScroll) {
-      scrollToBottom();
-    }
-    checkScroll();
-  });
-
   function scheduleTokenRefresh() {
     const token = localStorage.getItem("accessToken");
     if (!token) return;
@@ -669,32 +697,11 @@ window.onload = async function () {
     checkScroll();
   }
 
-  groupIcon.addEventListener("click", togglePanel);
-  closePanelButton.addEventListener("click", togglePanel);
-
-  document.addEventListener("click", (e) => {
-    if (
-      isPanelVisible &&
-      !onlineUsersPanel.contains(e.target) &&
-      !groupIcon.contains(e.target) &&
-      !closePanelButton.contains(e.target)
-    ) {
-      togglePanel();
-    }
-  });
-  
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && isPanelVisible) {
-      togglePanel();
-    }
-  });
-
   function startWebSocket() {
     const token = localStorage.getItem("accessToken");
     if (!token) return;
 
     if (conn) {
-      console.log("Closing existing WebSocket connection, readyState:", conn.readyState);
       conn.close();
       conn = null;
     }
@@ -707,13 +714,11 @@ window.onload = async function () {
     conn = new WebSocket(wsUrl);
 
     conn.onopen = function () {
-      console.log("WebSocket opened");
       conn.send(JSON.stringify({ type: "auth", token }));
       scheduleTokenRefresh();
     };
 
     conn.onclose = function (event) {
-      console.log("WebSocket closed, code:", event.code, "reason:", event.reason, "wasClean:", event.wasClean);
       appendLog(document.createElement("div"));
       onlineUsersPanel.classList.remove("visible");
       isPanelVisible = false;
@@ -735,20 +740,17 @@ window.onload = async function () {
           const parsed = JSON.parse(rawMessage);
 
           if (parsed.type === "auth_ok") {
-            console.log("Auth successful, requesting history");
             resetLastRenderedDay();
             conn.send(JSON.stringify({ type: "history" }));
             continue;
           }
 
           if (parsed.type === "online_users") {
-            console.log("Received online_users:", parsed.users);
             updateOnlineUsers(parsed.users || []);
             continue;
           }
 
           if (parsed.type === "delete") {
-            console.log("Received a message deletion:", parsed.messageId);
             const msgEl = document.getElementById(`msg-${parsed.messageId}`);
             if (msgEl) {
               const currentScrollTop = log.scrollTop;
@@ -819,7 +821,6 @@ window.onload = async function () {
           }
 
           if (parsed.type === "update") {
-            console.log("Received a message update:", parsed.messageId);
             const updated = parsed.Message;
             const msgEl = document.getElementById(`msg-${updated.id}`);
             if (msgEl) {
@@ -863,12 +864,4 @@ window.onload = async function () {
       }
     };
   }
-
-  window.addEventListener('resize', () => {
-    updateScrollButtonPosition();
-    if (autoScroll) {
-      scrollToBottom();
-    }
-    checkScroll();
-  });
 };
