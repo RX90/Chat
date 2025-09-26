@@ -17,15 +17,18 @@ This is a Websocket chat application with backend (Go), frontend (Vite + HTML/CS
 ### 1. Clone the repository
 
 ### 2. Run frontend server
+
 ```bash
 cd web && npm install && npm run dev
 ```
 
 ### 3. Run backend server
+
 ```bash
 docker compose up -d
 ```
 
 ### Usage
-Open http://localhost:3000 in your browser.
-Register to start chatting.
+
+Open the Network address shown by Vite (for example `http://192.168.0.103:3000`).  
+After that, you can register and start chatting.
