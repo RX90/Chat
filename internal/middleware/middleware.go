@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -25,72 +25,69 @@ var (
 )
 
 type Claims struct {
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 	Username string `json:"username"`
 }
 
 func NewAccessToken(userID, username string) (string, error) {
-	return jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
-		jwt.StandardClaims{
+	claims := Claims{
+		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   userID,
 			Issuer:    issuer,
-			IssuedAt:  time.Now().Unix(),
-			ExpiresAt: time.Now().Add(accessTTL).Unix(),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(accessTTL)),
 		},
-		username,
-	}).SignedString([]byte(signingKey))
+		Username: username,
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(signingKey))
 }
 
 func ParseAccessToken(accessToken string) (*Claims, error) {
-    token, err := jwt.ParseWithClaims(
-        accessToken,
-        &Claims{},
-        func(t *jwt.Token) (any, error) {
-            if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-                return nil, errors.New("invalid token")
-            }
-            return []byte(signingKey), nil
-        },
-    )
+	if len(accessToken) == 0 || len(accessToken) > 4096 {
+		return nil, errors.New("token is too long or empty")
+	}
+	if strings.Count(accessToken, ".") != 2 {
+		return nil, errors.New("token has invalid format")
+	}
 
-    if token == nil {
-        return nil, errors.New("invalid token")
-    }
+	token, err := jwt.ParseWithClaims(
+		accessToken,
+		&Claims{},
+		func(t *jwt.Token) (any, error) {
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, errors.New("invalid signing method")
+			}
+			return []byte(signingKey), nil
+		},
+	)
 
-    claims, ok := token.Claims.(*Claims)
-    if !ok {
-        return nil, errors.New("invalid token")
-    }
+	if token == nil {
+		return nil, errors.New("invalid token")
+	}
 
-    if err != nil {
-        if ve, ok := err.(*jwt.ValidationError); ok {
-            if ve.Errors&jwt.ValidationErrorExpired != 0 {
-                return claims, errors.New("token has expired")
-            }
-        }
-        return nil, err
-    }
+	claims, ok := token.Claims.(*Claims)
+	if !ok {
+		return nil, errors.New("invalid token claims")
+	}
 
-    return claims, nil
+	if err != nil {
+		var ve *jwt.ValidationError
+		if errors.As(err, &ve) && ve.Errors&jwt.ValidationErrorExpired != 0 {
+			return claims, errors.New("token has expired")
+		}
+		return nil, err
+	}
+
+	return claims, nil
 }
 
 func StrictUserIdentity(c *gin.Context) {
-	var token string
-
-	header := c.GetHeader(authHeader)
-	if header != "" {
-		headerParts := strings.Split(header, " ")
-		if len(headerParts) != 2 || headerParts[0] != "Bearer" || headerParts[1] == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"err": "auth header is invalid"})
-			return
-		}
-		token = headerParts[1]
-	} else {
-		token = c.Query("accessToken")
-		if token == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"err": "access token required"})
-			return
-		}
+	token := extractToken(c)
+	if token == "" {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"err": "access token required"})
+		return
 	}
 
 	claims, err := ParseAccessToken(token)
@@ -104,23 +101,14 @@ func StrictUserIdentity(c *gin.Context) {
 }
 
 func SoftUserIdentity(c *gin.Context) {
-	var token string
-
-	header := c.GetHeader(authHeader)
-	if header != "" {
-		headerParts := strings.Split(header, " ")
-		if len(headerParts) != 2 || headerParts[0] != "Bearer" || headerParts[1] == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"err": "auth header is invalid"})
-			return
-		}
-		token = headerParts[1]
-	} else {
+	token := extractToken(c)
+	if token == "" {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"err": "auth header is empty"})
 		return
 	}
 
 	claims, err := ParseAccessToken(token)
-	if claims.Subject == "" {
+	if err != nil || claims.Subject == "" {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"err": fmt.Sprintf("access token is invalid: %v", err)})
 		return
 	}
@@ -129,11 +117,18 @@ func SoftUserIdentity(c *gin.Context) {
 	c.Next()
 }
 
-func GetUserID(c *gin.Context) (uuid.UUID, error) {
-	stringUserID := c.GetString("userID")
-	userID, err := uuid.Parse(stringUserID)
-	if err != nil {
-		return uuid.Nil, err
+func extractToken(c *gin.Context) string {
+	header := c.GetHeader(authHeader)
+	if header != "" {
+		parts := strings.SplitN(header, " ", 2)
+		if len(parts) == 2 && parts[0] == "Bearer" {
+			return parts[1]
+		}
 	}
-	return userID, nil
+	return c.Query("accessToken")
+}
+
+func GetUserID(c *gin.Context) (uuid.UUID, error) {
+	stringUserID := c.GetString(userCtx)
+	return uuid.Parse(stringUserID)
 }

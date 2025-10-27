@@ -3,6 +3,7 @@ module github.com/RX90/Chat
 go 1.24.4
 
 require (
+	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/gorilla/websocket v1.5.3
 	github.com/spf13/viper v1.20.1
 	golang.org/x/crypto v0.39.0
@@ -42,7 +43,6 @@ require (
 )
 
 require (
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.10.1

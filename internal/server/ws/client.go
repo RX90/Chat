@@ -118,7 +118,7 @@ func (c *Client) readPump() {
 
 			c.userID = uuid.MustParse(claims.Subject)
 			c.username = claims.Username
-			c.setExpiry(time.Unix(claims.ExpiresAt, 0))
+			c.setExpiry(time.Unix(claims.ExpiresAt.Unix(), 0))
 
 			go c.writePump()
 
@@ -168,7 +168,7 @@ func (c *Client) readPump() {
 					c.closeWithPolicy("invalid token")
 					return
 				}
-				c.setExpiry(time.Unix(claims.ExpiresAt, 0))
+				c.setExpiry(time.Unix(claims.ExpiresAt.Unix(), 0))
 
 			case "message":
 				if time.Now().After(c.getExpiry()) {
