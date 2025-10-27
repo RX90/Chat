@@ -718,7 +718,7 @@ window.onload = async function () {
       scheduleTokenRefresh();
     };
 
-    conn.onclose = function (event) {
+    conn.onclose = function () {
       appendLog(document.createElement("div"));
       onlineUsersPanel.classList.remove("visible");
       isPanelVisible = false;
