@@ -108,7 +108,7 @@ func SoftUserIdentity(c *gin.Context) {
 	}
 
 	claims, err := ParseAccessToken(token)
-	if err != nil || claims.Subject == "" {
+	if claims.Subject == "" {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"err": fmt.Sprintf("access token is invalid: %v", err)})
 		return
 	}
